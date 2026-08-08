@@ -56,7 +56,7 @@ echo "✔ ${COUNT} words detected."
 # 5. Spot-check 3 random words against the paper/metal backup
 echo
 echo "==> Spot check: re-enter these words from your paper/metal backup:"
-for i in 1 2 3; do
+for _ in 1 2 3; do
   IDX=$((RANDOM % COUNT))
   read -r -p "  Word #$((IDX + 1)): " ANSWER
   [ "${ANSWER}" = "${WORDS[${IDX}]}" ] || {
