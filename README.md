@@ -88,10 +88,12 @@ gpg --no-default-keyring --keyring keys/sparrow.gpg --fingerprint   # confirm it
 ### 2. Build
 
 ```sh
-sudo ./build.sh            # ~15–60 min, needs ~10 GB disk, 4 GB+ RAM
+sudo ./build-root.sh            # on Debian hosts (or any host, simpler)
+# or, recommended on Ubuntu hosts (trixie's own toolchain in a container):
+sudo ./build-docker.sh
 ```
 
-Output: `dist/coldiron-os-0.1.0-amd64.iso`
+~15–60 min, needs ~10 GB disk, 4 GB+ RAM. Output: `dist/coldiron-os-0.1.0-amd64.iso`
 
 ### 3. Test in QEMU
 
