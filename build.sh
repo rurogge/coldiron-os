@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+#
+# build.sh — COLDIRON OS one-command ISO builder.
+#
+# Builds the hardened offline cold-storage live ISO with live-build.
+#
+# Usage:
+#   sudo ./build.sh          # full build (fetch + config + build)
+#   sudo ./build.sh clean    # clean previous build artifacts (config kept)
+#
+# Requirements:
+#   - Debian/Ubuntu host (tested on Debian 12+)
+#   - root privileges (live-build/debootstrap requirement)
+#   - ~10 GB free disk, 4 GB+ RAM
+#   - Internet access on the BUILD machine only (the target ISO has none)
+#
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+VERSION="0.1.0"
+DISTRIBUTION="trixie"
+ARCH="amd64"
+OUT="dist/coldiron-os-${VERSION}-${ARCH}.iso"
+
+# ---------------------------------------------------------------- helpers
+say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
+
+need_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+      exec sudo "$0" "$@"
+    fi
+    echo "ERROR: the build must run as root (live-build requires it)." >&2
+    echo "       Re-run with: sudo ./build.sh" >&2
+    exit 1
+  fi
+}
+
+# ---------------------------------------------------------------- prereqs
+need_root "$@"
+
+if ! command -v lb >/dev/null 2>&1 || ! command -v debootstrap >/dev/null 2>&1; then
+  say "Installing live-build and debootstrap..."
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq live-build debootstrap
+fi
+
+# ---------------------------------------------------------------- fetch + verify third-party binaries
+say "Fetching and verifying third-party binaries (Sparrow Wallet)..."
+./scripts/fetch-binaries.sh
+
+# ---------------------------------------------------------------- clean (optional)
+if [ "${1:-}" = "clean" ]; then
+  say "Cleaning previous build (config kept)..."
+  lb clean 2>/dev/null || true
+fi
+
+# ---------------------------------------------------------------- configure
+say "Configuring live-build (${DISTRIBUTION}/${ARCH})..."
+lb config \
+  --distribution "${DISTRIBUTION}" \
+  --archive-areas "main contrib non-free-firmware" \
+  --linux-flavours "${ARCH}" \
+  --binary-image iso-hybrid \
+  --debian-installer false \
+  --iso-application "COLDIRON OS" \
+  --iso-volume "COLDIRON OS" \
+  --iso-preparer "COLDIRON Project" \
+  --iso-publisher "COLDIRON Project" \
+  --hostname coldiron \
+  --memtest none \
+  --firmware-binary false \
+  --firmware-chroot false \
+  --bootappend-live "toram noswap noresume quiet loglevel=3 ipv6.disable=1" \
+  --apt-indices false \
+  --apt-options "--option Acquire::Retries=3" \
+  --cache true
+
+# ---------------------------------------------------------------- build
+say "Building ISO (15-60 minutes, depending on the machine)..."
+lb build
+
+mkdir -p dist
+mv -f "live-image-${ARCH}.hybrid.iso" "${OUT}"
+
+say "Build complete."
+echo "  ISO:       ${OUT}"
+echo "  Size:      $(du -h "${OUT}" | cut -f1)"
+echo "  SHA256:    $(sha256sum "${OUT}" | cut -d' ' -f1)"
+echo
+echo "Next steps:"
+echo "  ./scripts/qemu-test.sh ${OUT}     # headless smoke test"
+echo "  dd if=${OUT} of=/dev/sdX bs=4M status=progress   # write to USB"

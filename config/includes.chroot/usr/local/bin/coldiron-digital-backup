@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# coldiron-digital-backup — OPTIONAL encrypted seed backup (SECONDARY ONLY).
+#
+# Primary recovery must ALWAYS be the metal/paper backup. This creates a
+# double-encrypted digital copy: LUKS2 (vault) + age (separate passphrase).
+# The age passphrase MUST differ from the LUKS passphrase and must be
+# stored on paper — never with the USB.
+#
+# Workflow: explicit consent → seed entered twice → word-count validation
+# → 3-word spot check against the paper backup → age-encrypt → secure wipe.
+#
+set -euo pipefail
+
+MOUNT_POINT="/mnt/vault"
+BACKUP_DIR="${MOUNT_POINT}/encrypted-seed-backups"
+
+cat <<'WARN'
+
+⚠️  DIGITAL SEED BACKUP — READ CAREFULLY
+   -------------------------------------
+   • Paper or metal backups remain the PRIMARY recovery method.
+   • A digital backup is intended ONLY as a secondary disaster-recovery copy.
+   • Use a DIFFERENT passphrase from the LUKS vault password.
+   • Do NOT store the passphrase with the USB.
+   • Prefer a long passphrase (5+ random words).
+   • Verify that the paper/metal backup has been written down correctly
+     BEFORE creating any digital copy.
+WARN
+
+# 1. Explicit consent
+read -r -p "Do you understand and accept these risks? Type YES to continue: " CONSENT
+[ "${CONSENT}" = "YES" ] || { echo "Aborted."; exit 1; }
+
+# 2. Vault must be unlocked
+if ! mountpoint -q "${MOUNT_POINT}"; then
+  echo "==> Vault is locked — unlocking."
+  coldiron-vault
+fi
+
+# 3. Seed entry (twice, must match)
+read -r -s -p "Enter BIP39 seed phrase (single line): " SEED1; echo
+read -r -s -p "Repeat BIP39 seed phrase: " SEED2; echo
+[ -n "${SEED1}" ] || { echo "ERROR: empty seed." >&2; exit 1; }
+[ "${SEED1}" = "${SEED2}" ] || { echo "ERROR: the two entries do not match." >&2; exit 1; }
+
+# 4. Basic BIP39 word-count validation (12/15/18/21/24 words)
+mapfile -t WORDS <<<"${SEED1// /$'\n'}"
+COUNT="${#WORDS[@]}"
+case "${COUNT}" in
+  12|15|18|21|24) ;;
+  *) echo "ERROR: ${COUNT} words — expected 12, 15, 18, 21 or 24." >&2; exit 1 ;;
+esac
+echo "✔ ${COUNT} words detected."
+
+# 5. Spot-check 3 random words against the paper/metal backup
+echo
+echo "==> Spot check: re-enter these words from your paper/metal backup:"
+for i in 1 2 3; do
+  IDX=$((RANDOM % COUNT))
+  read -r -p "  Word #$((IDX + 1)): " ANSWER
+  [ "${ANSWER}" = "${WORDS[${IDX}]}" ] || {
+    echo "ERROR: word #$((IDX + 1)) does not match. Aborting — verify your paper backup first." >&2
+    exit 1
+  }
+done
+echo "✔ Spot check passed."
+
+# 6. Encrypt with age (new, DIFFERENT passphrase)
+TMP="$(mktemp /tmp/seed.XXXXXX)"
+chmod 600 "${TMP}"
+printf '%s\n' "${SEED1}" > "${TMP}"
+SEED1=""; SEED2=""; unset WORDS
+
+mkdir -p "${BACKUP_DIR}"
+OUTFILE="${BACKUP_DIR}/seed-$(date +%Y%m%d-%H%M%S).age"
+echo
+echo "==> Creating encrypted backup with a NEW, DIFFERENT passphrase (5+ random words recommended)"
+age -p -o "${OUTFILE}" "${TMP}"
+wipe -f "${TMP}" 2>/dev/null || rm -f "${TMP}"
+
+echo
+echo "✅ Encrypted seed backup created: ${OUTFILE}"
+echo "   • Store the age passphrase on paper, separate from the seed and the USB."
+echo "   • Recover with:  coldiron-restore"
+sha256sum "${OUTFILE}"

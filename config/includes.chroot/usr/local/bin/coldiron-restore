@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# coldiron-restore — decrypt an encrypted seed backup from the vault.
+#
+# Usage: coldiron-restore [file]
+#   Prints the seed to the terminal ONLY. Nothing is written to disk.
+#
+set -euo pipefail
+
+MOUNT_POINT="/mnt/vault"
+BACKUP_DIR="${MOUNT_POINT}/encrypted-seed-backups"
+
+if ! mountpoint -q "${MOUNT_POINT}"; then
+  echo "==> Vault is locked — unlocking."
+  coldiron-vault
+fi
+
+FILE="${1:-}"
+if [ -z "${FILE}" ]; then
+  mapfile -t BACKUPS < <(ls -1t "${BACKUP_DIR}"/*.age 2>/dev/null | head -20 || true)
+  [ "${#BACKUPS[@]}" -gt 0 ] || { echo "No backups found in ${BACKUP_DIR}." >&2; exit 1; }
+  echo "Available backups:"
+  select FILE in "${BACKUPS[@]}"; do
+    [ -n "${FILE}" ] && break
+  done
+fi
+
+[ -f "${FILE}" ] || { echo "ERROR: ${FILE} not found." >&2; exit 1; }
+
+cat <<'WARN'
+
+⚠️  Decrypting will display your seed phrase on screen.
+   Make sure no one can see your screen, then write the seed down on paper.
+WARN
+read -r -p "Type DECRYPT to continue: " OK
+[ "${OK}" = "DECRYPT" ] || { echo "Aborted."; exit 1; }
+
+echo
+echo "==> Age passphrase required:"
+age -d "${FILE}"
+echo
+echo "✅ Done."

@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# coldiron-menu — console launcher for COLDIRON OS.
+#
+set -euo pipefail
+
+while true; do
+  echo
+  echo "══════════════════════════════════════════════"
+  echo "   COLDIRON OS — Offline by design. Sovereign by default."
+  echo "══════════════════════════════════════════════"
+  echo "   1) Unlock vault"
+  echo "   2) Create encrypted seed backup"
+  echo "   3) Restore encrypted seed backup"
+  echo "   4) Launch Sparrow Wallet (graphical)"
+  echo "   5) Shut down securely"
+  echo "   q) Exit to shell"
+  echo "══════════════════════════════════════════════"
+  read -r -p "Choice: " CHOICE
+  case "${CHOICE}" in
+    1) coldiron-vault ;;
+    2) coldiron-digital-backup ;;
+    3) coldiron-restore ;;
+    4)
+      if [ -z "${DISPLAY:-}" ]; then
+        startx -- /usr/bin/openbox-session
+      else
+        /opt/sparrow/bin/Sparrow &
+      fi
+      ;;
+    5) coldiron-shutdown ;;
+    q|Q) exit 0 ;;
+    *) echo "Invalid choice." ;;
+  esac
+done

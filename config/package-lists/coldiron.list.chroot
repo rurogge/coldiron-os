@@ -1,0 +1,49 @@
+# COLDIRON OS — packages installed into the live image (chroot stage)
+#
+# NOTE: Bitcoin Core CLI tools come from the Debian `bitcoin-core` package
+# (provides bitcoin-cli, bitcoin-tx, bitcoin-util). Upstream-tarball mode
+# with manual SHA256SUMS.asc verification is on the roadmap.
+
+# ---- vault & encryption ----
+cryptsetup
+age
+argon2
+paperkey
+wipe
+
+# ---- offline signing / wallet ----
+bitcoin-core
+pcscd
+opensc
+usbutils
+
+# ---- QR (air-gapped PSBT transfer) ----
+qrencode
+zbar-tools
+
+# ---- minimal desktop (X11 + Openbox) ----
+xserver-xorg
+xinit
+openbox
+xterm
+menu
+dbus-x11
+
+# ---- Sparrow runtime deps (jpackage bundle needs GTK3) ----
+libgtk-3-0
+
+# ---- live system plumbing (installed by live-build too; explicit for clarity) ----
+live-boot
+live-boot-initramfs-tools
+live-config
+live-config-systemd
+live-tools
+
+# ---- console / locale ----
+console-setup
+keyboard-configuration
+locales
+dosfstools
+parted
+hdparm
+gpg

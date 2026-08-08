@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# coldiron-vault — unlock the LUKS2 vault USB and mount it at /mnt/vault.
+#
+# Usage: coldiron-vault [device]
+#   Without an argument, scans for LUKS devices and lets you choose.
+#
+set -euo pipefail
+
+MOUNT_POINT="/mnt/vault"
+SUBDIRS="psbt descriptors labels xpubs encrypted-seed-backups checksums"
+
+find_luks_devices() {
+  local d
+  for d in /dev/sd? /dev/sd?? /dev/vd? /dev/nvme0n?p?; do
+    [ -b "${d}" ] || continue
+    if cryptsetup isLuks "${d}" 2>/dev/null; then
+      echo "${d}"
+    fi
+  done
+}
+
+DEV="${1:-}"
+
+if [ -z "${DEV}" ]; then
+  echo "==> Scanning for LUKS2 vault devices..."
+  mapfile -t CANDIDATES < <(find_luks_devices || true)
+  if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+    echo "ERROR: no LUKS device found. Insert the vault USB." >&2
+    echo "  Create one with:  cryptsetup luksFormat --type luks2 <device>" >&2
+    echo "  (WARNING: this destroys all data on the device)" >&2
+    exit 1
+  fi
+  if [ "${#CANDIDATES[@]}" -eq 1 ]; then
+    DEV="${CANDIDATES[0]}"
+  else
+    echo "Multiple LUKS devices found:"
+    select DEV in "${CANDIDATES[@]}"; do
+      [ -n "${DEV}" ] && break
+    done
+  fi
+fi
+
+[ -b "${DEV}" ] || { echo "ERROR: ${DEV} is not a block device." >&2; exit 1; }
+
+if cryptsetup status vault >/dev/null 2>&1; then
+  echo "Vault already open."
+else
+  echo "==> Opening ${DEV} (LUKS passphrase required)"
+  cryptsetup luksOpen "${DEV}" vault
+fi
+
+mkdir -p "${MOUNT_POINT}"
+mount /dev/mapper/vault "${MOUNT_POINT}"
+
+for s in ${SUBDIRS}; do
+  mkdir -p "${MOUNT_POINT}/${s}"
+done
+
+echo
+echo "✅ Vault unlocked and mounted at ${MOUNT_POINT}"
+echo "   Directories: ${SUBDIRS}"

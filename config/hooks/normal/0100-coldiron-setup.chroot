@@ -1,0 +1,94 @@
+#!/bin/sh
+#
+# 0100-coldiron-setup.chroot — COLDIRON OS in-image configuration.
+# Runs inside the build chroot.
+#
+set -e
+
+echo "==> COLDIRON: system setup"
+
+# --- helper scripts must be executable
+chmod 0755 /usr/local/bin/coldiron-* 2>/dev/null || true
+
+# --- loopback-only networking
+cat > /etc/network/interfaces <<'EOF'
+# COLDIRON OS: loopback only. No interfaces are brought up.
+auto lo
+iface lo inet loopback
+EOF
+
+# --- disable services that must not exist in an offline appliance
+for svc in NetworkManager wpa_supplicant ModemManager bluetooth cups avahi-daemon; do
+  systemctl disable "${svc}" 2>/dev/null || true
+done
+
+# --- desktop: live images autologin on tty1; auto-start openbox there
+mkdir -p /root/.config/openbox
+
+cat > /root/.xinitrc <<'EOF'
+#!/bin/sh
+exec openbox-session
+EOF
+chmod 0755 /root/.xinitrc
+
+cat > /root/.config/openbox/autostart <<'EOF'
+# COLDIRON desktop: launcher menu in a terminal
+xterm -T "COLDIRON OS" -e /usr/local/bin/coldiron-menu &
+EOF
+
+cat >> /root/.bash_profile <<'EOF'
+# COLDIRON OS: auto-start X on the first console
+if [ -z "${DISPLAY:-}" ] && [ "${XDG_VTNR:-}" = "1" ]; then
+  exec startx
+fi
+EOF
+
+# --- no shell history (RAM-only anyway; belt and suspenders)
+cat > /etc/profile.d/coldiron.sh <<'EOF'
+export HISTFILE=/dev/null
+export HISTSIZE=0
+EOF
+
+# --- desktop launchers for the appliance actions
+mkdir -p /usr/share/applications
+cat > /usr/share/applications/coldiron-vault.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Unlock Vault
+Comment=Unlock and mount the encrypted vault USB
+Exec=/usr/local/bin/coldiron-vault
+Terminal=true
+Categories=Security;System;
+EOF
+
+cat > /usr/share/applications/coldiron-digital-backup.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Create Encrypted Seed Backup
+Comment=Optional encrypted seed backup (secondary recovery)
+Exec=/usr/local/bin/coldiron-digital-backup
+Terminal=true
+Categories=Security;System;
+EOF
+
+cat > /usr/share/applications/coldiron-restore.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Restore Encrypted Seed Backup
+Comment=Decrypt a seed backup
+Exec=/usr/local/bin/coldiron-restore
+Terminal=true
+Categories=Security;System;
+EOF
+
+cat > /usr/share/applications/coldiron-shutdown.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Shutdown Securely
+Comment=Unmount vault and power off
+Exec=/usr/local/bin/coldiron-shutdown
+Terminal=true
+Categories=System;Shutdown;
+EOF
+
+exit 0

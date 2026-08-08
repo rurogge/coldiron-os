@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# coldiron-shutdown — securely unmount the vault, drop caches, power off.
+#
+set -euo pipefail
+
+sync
+
+if mountpoint -q /mnt/vault; then
+  echo "==> Unmounting vault..."
+  umount /mnt/vault
+fi
+
+if cryptsetup status vault >/dev/null 2>&1; then
+  echo "==> Closing LUKS vault..."
+  cryptsetup close vault
+fi
+
+echo "==> Dropping caches and powering off."
+echo 3 > /proc/sys/vm/drop_caches
+poweroff -f
