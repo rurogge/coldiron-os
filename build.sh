@@ -43,12 +43,19 @@ need_root "$@"
 if ! command -v lb >/dev/null 2>&1 || ! command -v debootstrap >/dev/null 2>&1; then
   say "Installing live-build and debootstrap..."
   apt-get update -qq
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq live-build debootstrap
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq live-build debootstrap curl
 fi
-# debootstrap needs the Debian archive keyring to fetch ${DISTRIBUTION}
-if [ ! -f /usr/share/keyrings/debian-archive-keyring.gpg ]; then
-  say "Installing debian-archive-keyring (needed to bootstrap ${DISTRIBUTION})..."
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq debian-archive-keyring
+# debootstrap needs a FRESH Debian archive keyring: the one bundled with
+# Ubuntu hosts is too old to verify ${DISTRIBUTION}'s signing keys, so
+# refresh it from Debian's own pool (checking for trixie's EDDSA key).
+if ! gpg --no-default-keyring --keyring /usr/share/keyrings/debian-archive-keyring.gpg \
+     --list-keys 41587F7DB8C774BCCF131416762F67A0B2C39DE4 >/dev/null 2>&1; then
+  say "Refreshing debian-archive-keyring from the Debian pool (Ubuntu's is too old for ${DISTRIBUTION})..."
+  DAK_DEB="$(curl -fsSL https://ftp.debian.org/debian/pool/main/d/debian-archive-keyring/ \
+             | grep -oE 'debian-archive-keyring_[0-9.]+_all\.deb' | sort -V | tail -n 1)"
+  curl -fsSL "https://ftp.debian.org/debian/pool/main/d/debian-archive-keyring/${DAK_DEB}" -o /tmp/dak.deb
+  dpkg -i /tmp/dak.deb
+  rm -f /tmp/dak.deb
 fi
 
 # ---------------------------------------------------------------- fetch + verify third-party binaries
