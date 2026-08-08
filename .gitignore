@@ -20,6 +20,10 @@ auto/
 # generated / third-party binaries (fetched + verified by scripts/fetch-binaries.sh)
 config/includes.chroot/opt/sparrow/
 
+# local trusted keyrings (created by build-root.sh step 2 — machine-local trust state)
+keys/*.gpg
+keys/*.gpg~
+
 # misc
 .cache/
 *.swp

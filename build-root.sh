@@ -33,7 +33,7 @@ fi
 say "1/4 Installing build prerequisites..."
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-  live-build debootstrap qemu-system-x86 curl gnupg
+  live-build debootstrap debian-archive-keyring qemu-system-x86 curl gnupg
 
 # ---------------------------------------------------------------- 2. Sparrow signing key (out-of-band trust)
 if [ -f "${KEYRING}" ]; then

@@ -45,6 +45,11 @@ if ! command -v lb >/dev/null 2>&1 || ! command -v debootstrap >/dev/null 2>&1; 
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq live-build debootstrap
 fi
+# debootstrap needs the Debian archive keyring to fetch ${DISTRIBUTION}
+if [ ! -f /usr/share/keyrings/debian-archive-keyring.gpg ]; then
+  say "Installing debian-archive-keyring (needed to bootstrap ${DISTRIBUTION})..."
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq debian-archive-keyring
+fi
 
 # ---------------------------------------------------------------- fetch + verify third-party binaries
 say "Fetching and verifying third-party binaries (Sparrow Wallet)..."
@@ -59,6 +64,7 @@ fi
 # ---------------------------------------------------------------- configure
 say "Configuring live-build (${DISTRIBUTION}/${ARCH})..."
 lb config \
+  --mode debian \
   --distribution "${DISTRIBUTION}" \
   --archive-areas "main contrib non-free-firmware" \
   --linux-flavours "${ARCH}" \
@@ -68,7 +74,6 @@ lb config \
   --iso-volume "COLDIRON OS" \
   --iso-preparer "COLDIRON Project" \
   --iso-publisher "COLDIRON Project" \
-  --hostname coldiron \
   --memtest none \
   --firmware-binary false \
   --firmware-chroot false \

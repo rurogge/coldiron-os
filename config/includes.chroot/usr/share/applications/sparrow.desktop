@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Sparrow Wallet
+Comment=Bitcoin wallet — COLDIRON OS
+Exec=/opt/sparrow/bin/Sparrow
+Icon=config/includes.chroot/opt/sparrow/lib/Sparrow.png
+Terminal=false
+Categories=Finance;Bitcoin;Security;
