@@ -24,7 +24,7 @@ USB #1 — COLDIRON OS (bootable, read-only)
 ├── No networking: drivers blacklisted, no network services, ipv6 off
 ├── No persistent logs, no swap, no core dumps, kexec disabled
 ├── Minimal X11/Openbox desktop + console launcher
-├── Sparrow Wallet 2.5.2 (verified signature, see scripts/fetch-binaries.sh)
+├── Sparrow Wallet 2.5.3 (signed manifest + sha256 verified, see scripts/fetch-binaries.sh)
 ├── Bitcoin Core CLI tools (bitcoin-cli / bitcoin-tx / bitcoin-util)
 ├── QR tools (qrencode / zbar-tools), age, paperkey, wipe
 └── pcscd + OpenSC + libusb for hardware-wallet / smartcard support
@@ -76,10 +76,12 @@ dist/                                     built ISO lands here (gitignored)
 
 The build **refuses** to verify Sparrow with a key downloaded on the spot —
 that would defeat the purpose. Follow the official instructions
-(https://sparrowwallet.com/docs/verifying-signatures.html), then:
+(https://sparrowwallet.com/download/ → "Verifying the Release"), then:
 
 ```sh
-gpg --no-default-keyring --keyring keys/sparrow.gpg --import <sparrow-signing-key.asc>
+gpg --keyserver keyserver.ubuntu.com --recv-keys D4D0D3202FC06849A257B38DE94618334C674B40
+gpg --export D4D0D3202FC06849A257B38DE94618334C674B40 \
+  | gpg --no-default-keyring --keyring keys/sparrow.gpg --import
 gpg --no-default-keyring --keyring keys/sparrow.gpg --fingerprint   # confirm it
 ```
 
@@ -126,10 +128,10 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 - Restrictive sysctls: `kptr_restrict=2`, `dmesg_restrict=1`, core dumps
   disabled, `kexec_load_disabled=1`, BPF hardened, IPv6 off.
 - AppArmor and nftables infrastructure present.
-- The build verifies Sparrow's detached signature against **your** keyring.
-  Bitcoin Core CLI comes from the Debian `bitcoin-core` package (apt-pinned,
-  reproducible); upstream-tarball mode with manual SHA256SUMS.asc
-  verification is on the roadmap.
+- The build verifies Sparrow's release manifest against **your** keyring and
+  cross-checks the archive sha256. Bitcoin Core CLI comes from the Debian
+  `bitcoin-core` package (apt-pinned, reproducible); upstream-tarball mode
+  with manual SHA256SUMS.asc verification is on the roadmap.
 
 ## Roadmap
 

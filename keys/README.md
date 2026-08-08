@@ -8,20 +8,26 @@ not from keys downloaded over the same channel as the binaries.
 
 ## Sparrow Wallet → `keys/sparrow.gpg`
 
-Import Craig Raw's signing key by following the official instructions:
+Signing key fingerprint (published on the official download page,
+"Verifying the Release" section):
 
-    https://sparrowwallet.com/docs/verifying-signatures.html
+    D4D0 D320 2FC0 6849 A257 B38D E946 1833 4C67 4B40
 
-Then create this project's keyring:
+Import it and create this project's keyring:
 
 ```sh
-gpg --no-default-keyring --keyring keys/sparrow.gpg --import <sparrow-signing-key.asc>
+gpg --keyserver keyserver.ubuntu.com --recv-keys D4D0D3202FC06849A257B38DE94618334C674B40
+gpg --export D4D0D3202FC06849A257B38DE94618334C674B40 \
+  | gpg --no-default-keyring --keyring keys/sparrow.gpg --import
 gpg --no-default-keyring --keyring keys/sparrow.gpg --fingerprint
 ```
 
-Confirm the fingerprint against the official page **before** building. The
-build script verifies the release tarball's detached `.asc` signature with
-this keyring and aborts on any mismatch.
+**Confirm the fingerprint matches the official page before building:**
+https://sparrowwallet.com/download/ → "Verifying the Release".
+
+The build script then verifies the release **manifest** (`sparrow-2.5.3-manifest.txt`,
+detached `.asc` signature) with this keyring and cross-checks the archive's
+sha256 against the manifest, exactly as the official instructions describe.
 
 ## Bitcoin Core
 
