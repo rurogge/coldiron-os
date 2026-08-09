@@ -1,0 +1,6 @@
+// COLDIRON OS — build-time apt policy
+// Never prompt during package operations. live-build's "remove pass"
+// (chroot_package-lists) removes its temp helper (dctrl-tools) with a
+// plain `apt-get remove` without -y; with no TTY in containerized builds
+// the [Y/n] prompt aborts the whole build. Assume-Yes fixes that.
+APT::Get::Assume-Yes "true";

@@ -131,9 +131,12 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
   disabled, `kexec_load_disabled=1`, BPF hardened, IPv6 off.
 - AppArmor and nftables infrastructure present.
 - The build verifies Sparrow's release manifest against **your** keyring and
-  cross-checks the archive sha256. Bitcoin Core CLI comes from the Debian
-  `bitcoin-core` package (apt-pinned, reproducible); upstream-tarball mode
-  with manual SHA256SUMS.asc verification is on the roadmap.
+  cross-checks the archive sha256. Bitcoin Core CLI tools (bitcoin-cli /
+  bitcoin-tx / bitcoin-util / bitcoind) are staged from the official
+  bitcoincore.org tarball with the sha256 **pinned inside
+  scripts/fetch-binaries.sh** (plus a cross-check against the official
+  SHA256SUMS over HTTPS). Full SHA256SUMS.asc GPG verification with your own
+  keyring is part of the security pass on the roadmap.
 
 ## Roadmap
 

@@ -97,3 +97,44 @@ Categories=Finance;Bitcoin;Security;
 EOF
 
 echo "  ✔ Sparrow ${SPARROW_VERSION} manifest verified and staged."
+
+# ---------------------------------------------------------------- Bitcoin Core CLI tools
+# NOT a Debian package (bitcoin-core was removed from Debian years ago).
+# We stage the official bitcoincore.org binaries instead.
+# Verification (v0.1): the sha256 of the release tarball is PINNED below —
+# the build refuses to continue unless the download matches BOTH the pinned
+# hash AND the official SHA256SUMS served over HTTPS. Full GPG verification
+# of SHA256SUMS.asc against a user-supplied keyring (keys/bitcoin.gpg) is
+# part of the security pass on the roadmap.
+BITCOIN_VERSION="${BITCOIN_VERSION:-31.1}"
+BITCOIN_TGZ="bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz"
+BITCOIN_BASE_URL="https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}"
+BITCOIN_TGZ_URL="${BITCOIN_BASE_URL}/${BITCOIN_TGZ}"
+BITCOIN_SUMS_URL="${BITCOIN_BASE_URL}/SHA256SUMS"
+BITCOIN_SHA256="b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e"
+BITCOIN_DEST="config/includes.chroot/opt/bitcoin"
+
+say "Downloading ${BITCOIN_TGZ} (+ SHA256SUMS)"
+curl -fL "${BITCOIN_TGZ_URL}" -o "${TMP}/${BITCOIN_TGZ}"
+curl -fL "${BITCOIN_SUMS_URL}" -o "${TMP}/SHA256SUMS"
+
+say "Verifying sha256 (pinned: ${BITCOIN_SHA256:0:16}...)"
+ACTUAL="$(sha256sum "${TMP}/${BITCOIN_TGZ}" | cut -d' ' -f1)"
+SUMS_ENTRY="$(awk -v f="${BITCOIN_TGZ}" '$2 == f {print $1}' "${TMP}/SHA256SUMS")"
+if [ "${ACTUAL}" != "${BITCOIN_SHA256}" ] || [ "${SUMS_ENTRY}" != "${BITCOIN_SHA256}" ]; then
+  echo "ERROR: sha256 mismatch for ${BITCOIN_TGZ}" >&2
+  echo "  pinned:  ${BITCOIN_SHA256}" >&2
+  echo "  sums:    ${SUMS_ENTRY}" >&2
+  echo "  actual:  ${ACTUAL}" >&2
+  exit 1
+fi
+echo "  ✔ sha256 matches pinned hash and official SHA256SUMS"
+
+say "Extracting to ${BITCOIN_DEST}"
+rm -rf "${BITCOIN_DEST}"
+mkdir -p "${BITCOIN_DEST}"
+tar -xzf "${TMP}/${BITCOIN_TGZ}" -C "${BITCOIN_DEST}" --strip-components=1
+# The appliance only needs the CLI/utility binaries; drop dev/static libs
+# and docs to keep the image lean.
+rm -rf "${BITCOIN_DEST}/include" "${BITCOIN_DEST}/lib" "${BITCOIN_DEST}/share"
+echo "  ✔ Bitcoin Core ${BITCOIN_VERSION} staged (pinned sha256 verified)."

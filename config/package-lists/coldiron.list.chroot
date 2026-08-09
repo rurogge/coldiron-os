@@ -1,8 +1,11 @@
 # COLDIRON OS — packages installed into the live image (chroot stage)
 #
-# NOTE: Bitcoin Core CLI tools come from the Debian `bitcoin-core` package
-# (provides bitcoin-cli, bitcoin-tx, bitcoin-util). Upstream-tarball mode
-# with manual SHA256SUMS.asc verification is on the roadmap.
+# NOTE: Bitcoin Core CLI tools are NOT available as a Debian package
+# (`bitcoin-core` does not exist in trixie — Bitcoin Core was removed from
+# Debian years ago). They are staged from the official bitcoincore.org
+# tarball by scripts/fetch-binaries.sh into /opt/bitcoin, with the sha256
+# pinned inside the script (full SHA256SUMS.asc GPG verification with a
+# user-supplied keyring is on the roadmap).
 
 # ---- vault & encryption ----
 cryptsetup
@@ -12,7 +15,6 @@ paperkey
 wipe
 
 # ---- offline signing / wallet ----
-bitcoin-core
 pcscd
 opensc
 usbutils
@@ -36,7 +38,6 @@ libgtk-3-0
 live-boot
 live-boot-initramfs-tools
 live-config
-live-config-systemd
 live-tools
 
 # ---- console / locale ----
