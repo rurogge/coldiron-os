@@ -22,7 +22,25 @@ for svc in NetworkManager wpa_supplicant ModemManager bluetooth cups avahi-daemo
   systemctl disable "${svc}" 2>/dev/null || true
 done
 
-# --- desktop: live images autologin on tty1; auto-start openbox there
+# --- desktop: autologin on tty1; auto-start openbox there.
+# Without autologin the appliance is unusable: root is locked in the image
+# (root:* in shadow) and live-config's default autologin logs in as "user"
+# (created at boot, password "live") — but the appliance scripts need root
+# (cryptsetup). The drop-in is named zzz-* so it sorts AFTER live-config's
+# autologin drop-in and wins the systemd ExecStart merge → autologin as
+# root, straight into the desktop. Physical possession of the USB is the
+# real authentication for this offline, RAM-only appliance.
+mkdir -p /etc/systemd/system/getty@tty1.service.d
+cat > /etc/systemd/system/getty@tty1.service.d/zzz-coldiron-autologin.conf <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
+EOF
+
+# Root password: documented default for v0.1 (offline appliance, no remote
+# attack surface; allows login on other ttys / serial for troubleshooting).
+echo 'root:coldiron' | chpasswd
+
 mkdir -p /root/.config/openbox
 
 cat > /root/.xinitrc <<'EOF'
@@ -48,6 +66,18 @@ cat > /etc/profile.d/coldiron.sh <<'EOF'
 export HISTFILE=/dev/null
 export HISTSIZE=0
 EOF
+
+# --- fallback desktop for live-config's "user" session (if it ever wins
+# the autologin merge): user is created at first boot by live-config;
+# pre-creating the home makes useradd reuse it. Written here, after the
+# root autostart exists, so the copy succeeds.
+mkdir -p /home/user/.config/openbox
+cat > /home/user/.xinitrc <<'EOF'
+#!/bin/sh
+exec openbox-session
+EOF
+chmod 0755 /home/user/.xinitrc
+cp /root/.config/openbox/autostart /home/user/.config/openbox/autostart 2>/dev/null || true
 
 # --- desktop launchers for the appliance actions
 mkdir -p /usr/share/applications

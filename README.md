@@ -120,6 +120,11 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 | `coldiron-restore` | Decrypt a seed backup to the screen |
 | `coldiron-shutdown` | Unmount, close vault, drop caches, power off |
 
+> 🔑 **v0.1 default credentials:** the console **autologins as root** on tty1
+> (the appliance is offline and RAM-only — physical possession of the USB
+> is the real authentication). The documented root password for other
+> ttys / serial is `coldiron`; change it with `passwd` if you rely on it.
+
 ## Hardening notes (v0.1 — honest limitations)
 
 - `toram` + `noswap` + `noresume` + volatile logs → no persistent OS state.
