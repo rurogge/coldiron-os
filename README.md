@@ -2,19 +2,79 @@
 
 **Offline by design. Sovereign by default.**
 
-A small, purpose-built, auditable cold-storage appliance for Bitcoin that
-happens to boot from USB. COLDIRON OS is a hardened Debian 13 (Trixie)
-live-build image that runs entirely from RAM, with no usable networking,
-Sparrow Wallet and Bitcoin Core CLI tools preinstalled, and a companion
-LUKS2-encrypted vault USB for offline PSBT signing and optional encrypted
-seed backups.
-
 > ⚠️ **STATUS: PROTOTYPE (v0.1).** Do NOT trust this ISO with a valuable
 > seed yet. The v0.1 image makes networking extremely difficult to use by
 > accident (driver blacklist + no network services + restrictive sysctls),
 > but the kernel still contains its networking subsystem. A genuinely
 > networkless kernel is the v0.2 milestone (see Roadmap). Until the
 > security pass (see `docs/`) is complete, treat this as a test build.
+
+## Table of Contents
+
+- [The Problem](#the-problem)
+- [What COLDIRON OS is](#what-coldiron-os-is)
+- [Architecture](#architecture)
+- [Encryption model](#encryption-model--two-independent-layers)
+- [Download](#download)
+- [Quickstart](#quickstart)
+- [In-image usage](#in-image-usage)
+- [Documentation](#documentation)
+- [Hardening notes (v0.1)](#hardening-notes-v01--honest-limitations)
+- [Roadmap](#roadmap)
+- [License](#license)
+
+## The Problem
+
+Bitcoin self-custody has a weak point that no hardware wallet fully
+solves: **the moment your private keys touch a machine that has ever been
+online, they are one piece of malware away from being stolen.** Most
+people use a "signing laptop" that is *supposed* to stay offline — but
+"supposed to" is not a security control. A single careless connection,
+an OS update, a Wi-Fi auto-join, or a Bluetooth misclick is enough to
+compromise years of savings.
+
+The standard answer — a dedicated hardware wallet — is good but not
+universal: devices are single-vendor black boxes, firmware updates must
+be trusted, supply chains are opaque, and the device itself can become a
+single point of failure (lost, dead battery, broken screen, obsolete).
+
+**COLDIRON OS takes a different approach: make the *entire computer* the
+cold wallet.** A hardened Linux distribution that boots from a USB stick
+you control, runs entirely from RAM, **has no usable networking by
+design**, and ships with the tools you actually need for air-gapped
+Bitcoin signing:
+
+- **Sparrow Wallet** — the most widely used open-source desktop wallet,
+  preinstalled and GPG-verified,
+- **Bitcoin Core CLI tools** (`bitcoin-cli`, `bitcoin-tx`, `bitcoin-util`)
+  for raw transaction inspection,
+- a **LUKS2-encrypted vault USB** for PSBTs, descriptors and optional
+  seed backups,
+- QR-code tooling, `age` encryption, hardware-wallet/smartcard support
+  via OpenSC.
+
+Because the whole OS is built from source with `live-build`, **every
+line of it is auditable and reproducible by anyone** — no vendor to
+trust, no firmware to update, no "just trust us" anywhere. If the network
+is physically impossible to reach, the malware has no way in; if the USB
+is lost, the LUKS2 vault and the paper seed backups still protect you.
+
+## What COLDIRON OS is
+
+A small, purpose-built, auditable cold-storage appliance for Bitcoin that
+happens to boot from USB. COLDIRON OS is a hardened Debian 13 (Trixie)
+live-build image that:
+
+- runs **entirely from RAM** (`toram`) — nothing is ever written back to
+  the boot USB, power-off removes all state,
+- has **no usable networking** — drivers blacklisted, no network
+  services, IPv6 off, restrictive sysctls,
+- **autologins to a minimal desktop** with a console launcher menu,
+- ships **verified binaries only** (Sparrow manifest GPG-checked against
+  *your* keyring; Bitcoin Core pinned sha256 + official SHA256SUMS
+  cross-check),
+- pairs with a **LUKS2-encrypted vault USB** for offline PSBT signing
+  and optional encrypted seed backups.
 
 ## Architecture
 
@@ -51,24 +111,17 @@ age encrypted file (optional tertiary). The appliance forces an explicit
 acknowledgement of this and verifies the physical backup before encrypting
 anything digitally.
 
-## Layout
+## Download
 
+Prebuilt ISO: **[Releases](https://github.com/rurogge/coldiron-os/releases)**
+→ `coldiron-os-0.1.0-amd64.iso` + `SHA256SUMS`.
+
+```sh
+sha256sum -c SHA256SUMS     # → coldiron-os-0.1.0-amd64.iso: OK
+sudo dd if=coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ```
-build.sh                                  one-command ISO builder (run as root)
-scripts/
-├── fetch-binaries.sh                     download + GPG-verify Sparrow (refuses without your keyring)
-└── qemu-test.sh                          smoke-test the ISO in QEMU (headless)
-keys/                                     YOUR trusted signing keyrings (never auto-downloaded)
-config/
-├── package-lists/coldiron.list.chroot    packages installed into the image
-├── hooks/normal/0100-coldiron-setup.chroot
-└── includes.chroot/                      files baked into the rootfs
-    ├── etc/modprobe.d/blacklist-coldiron.conf   network/peripheral driver blacklist
-    ├── etc/sysctl.d/99-coldiron.conf            kernel hardening sysctls
-    └── usr/local/bin/                     coldiron-vault, coldiron-digital-backup,
-                                           coldiron-restore, coldiron-shutdown, coldiron-menu
-dist/                                     built ISO lands here (gitignored)
-```
+
+Full install instructions: [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Quickstart
 
@@ -125,6 +178,33 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 > is the real authentication). The documented root password for other
 > ttys / serial is `coldiron`; change it with `passwd` if you rely on it.
 
+## Documentation
+
+- [docs/INSTALL.md](docs/INSTALL.md) — download, verify, write to USB, first boot, vault setup
+- [docs/USAGE.md](docs/USAGE.md) — the launcher menu, PSBT signing workflow, seed backup/restore
+- [docs/BUILD.md](docs/BUILD.md) — build from source, verification model, troubleshooting
+- [docs/TESTING.md](docs/TESTING.md) — QEMU smoke test + serial-console harness
+- [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) — what this protects, against whom, honest limitations
+
+## Repository layout
+
+```
+build.sh                                  one-command ISO builder (run as root)
+scripts/
+├── fetch-binaries.sh                     download + GPG-verify Sparrow + Bitcoin Core CLI (refuses without your keyring)
+└── qemu-test.sh                          smoke-test the ISO in QEMU (headless)
+keys/                                     YOUR trusted signing keyrings (never auto-downloaded, gitignored)
+config/
+├── package-lists/coldiron.list.chroot    packages installed into the image
+├── hooks/normal/0100-coldiron-setup.chroot
+└── includes.chroot/                      files baked into the rootfs
+    ├── etc/modprobe.d/blacklist-coldiron.conf   network/peripheral driver blacklist
+    ├── etc/sysctl.d/99-coldiron.conf            kernel hardening sysctls
+    └── usr/local/bin/                     coldiron-vault, coldiron-digital-backup,
+                                           coldiron-restore, coldiron-shutdown, coldiron-menu
+dist/                                     built ISO lands here (gitignored)
+```
+
 ## Hardening notes (v0.1 — honest limitations)
 
 - `toram` + `noswap` + `noresume` + volatile logs → no persistent OS state.
@@ -138,8 +218,8 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 - The build verifies Sparrow's release manifest against **your** keyring and
   cross-checks the archive sha256. Bitcoin Core CLI tools (bitcoin-cli /
   bitcoin-tx / bitcoin-util / bitcoind) are staged from the official
-  bitcoincore.org tarball with the sha256 **pinned inside
-  scripts/fetch-binaries.sh** (plus a cross-check against the official
+  bitcoincore.org tarball with the sha256 **pinned inside**
+  scripts/fetch-binaries.sh (plus a cross-check against the official
   SHA256SUMS over HTTPS). Full SHA256SUMS.asc GPG verification with your own
   keyring is part of the security pass on the roadmap.
 
