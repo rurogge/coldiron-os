@@ -239,3 +239,5 @@ dist/                                     built ISO lands here (gitignored)
 ## License
 
 GPL-3.0-or-later (see LICENSE).
+
+Copyright (C) 2026 the COLDIRON OS authors.
