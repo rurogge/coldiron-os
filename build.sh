@@ -18,7 +18,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-VERSION="0.1.0"
+VERSION="0.1.1"
 DISTRIBUTION="trixie"
 ARCH="amd64"
 OUT="dist/coldiron-os-${VERSION}-${ARCH}.iso"

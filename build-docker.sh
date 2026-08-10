@@ -25,7 +25,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 IMG="debian:trixie"
-ISO="dist/coldiron-os-0.1.0-amd64.iso"
+ISO="dist/coldiron-os-0.1.1-amd64.iso"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "ERROR: run as root (docker needs the daemon socket): sudo ./build-docker.sh" >&2

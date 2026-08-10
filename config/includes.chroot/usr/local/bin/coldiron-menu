@@ -2,7 +2,11 @@
 #
 # coldiron-menu — console launcher for COLDIRON OS.
 #
-set -euo pipefail
+# NOTE: deliberately NO `set -e` here — this is a launcher loop. The option
+# scripts below (coldiron-vault/digital-backup/restore) exit non-zero on ANY
+# failure (abort at consent, no vault USB, wrong passphrase, …). With `set -e`
+# that failure would kill the whole menu → xterm closes → black screen.
+set -uo pipefail
 
 while true; do
   echo
@@ -16,7 +20,7 @@ while true; do
   echo "   5) Shut down securely"
   echo "   q) Exit to shell"
   echo "══════════════════════════════════════════════"
-  read -r -p "Choice: " CHOICE
+  read -r -p "Choice: " CHOICE || exit 0
   case "${CHOICE}" in
     1) coldiron-vault ;;
     2) coldiron-digital-backup ;;
