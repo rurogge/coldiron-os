@@ -130,7 +130,9 @@ if [ "${1:-}" = "--test" ]; then
   ROLLFILE="${2:-/dev/stdin}"
   VALS=""
   BITS=""
-  while read -r face; do
+  # read the final line even when the file has no trailing newline
+  # (while read alone silently DROPS an unterminated last line)
+  while read -r face || [ -n "${face}" ]; do
     [ -n "${face}" ] || continue
     case "${face}" in [1-6]) ;; *) echo "BADROLL:${face}" >&2; exit 2 ;; esac
     VALS="${VALS} ${face}"
@@ -140,8 +142,12 @@ if [ "${1:-}" = "--test" ]; then
   read -ra FACES <<<"${VALS}"
   i=0
   while [ "${i}" -lt "${#FACES[@]}" ]; do
-    a="${FACES[${i}]}"; b="${FACES[$((i+1))]}"
-    [ -n "${b:-}" ] && i=$((i+2)) || { echo "ODDROLLS" >&2; exit 2; }
+    a="${FACES[${i}]:-}"
+    b="${FACES[$((i+1))]:-}"
+    if [ -z "${a}" ] || [ -z "${b}" ]; then
+      echo "ODDROLLS (incomplete pair)" >&2; exit 2
+    fi
+    i=$((i+2))
     v=$(( (a-1)*6 + (b-1) ))
     if [ "${v}" -lt 32 ]; then
       VALS5="${VALS5} ${v}"; PAIRS=$((PAIRS+1))
