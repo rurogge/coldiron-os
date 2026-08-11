@@ -25,7 +25,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 IMG="debian:trixie"
-ISO="dist/coldiron-os-0.1.1-amd64.iso"
+ISO="dist/coldiron-os-0.2.0-amd64.iso"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "ERROR: run as root (docker needs the daemon socket): sudo ./build-docker.sh" >&2
@@ -50,7 +50,11 @@ docker run --rm --privileged \
     set -euo pipefail
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq live-build debootstrap curl gnupg
-    ./build.sh
+    # "clean" arg = FULL lb clean (chroot + binary). REQUIRED whenever
+    # config/includes.chroot content changed: lb clean --binary alone leaves
+    # the chroot stage stamped "done" and the new files are silently NOT
+    # baked into the ISO (v0.1.1 lesson).
+    ./build.sh clean
   '
 
 echo
