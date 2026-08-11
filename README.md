@@ -2,25 +2,25 @@
 
 **Offline by design. Sovereign by default.**
 
-> ⚠️ **STATUS: PROTOTYPE (v0.2).** Do NOT trust this ISO with a valuable
-> seed yet. The v0.1 image makes networking extremely difficult to use by
-> accident (driver blacklist + no network services + restrictive sysctls),
-> but the kernel still contains its networking subsystem. A genuinely
-> networkless kernel is the v0.2 milestone (see Roadmap). Until the
-> security pass (see `docs/`) is complete, treat this as a test build.
+> ⚠️ **STATUS: PROTOTYPE (v0.2.0 released).** Do NOT trust this ISO with a
+> valuable seed yet. Networking is extremely difficult to use by accident
+> (driver blacklist + no network services + restrictive sysctls), but the
+> kernel still contains its networking subsystem — a genuinely networkless
+> kernel is future work. Until the security pass (see `docs/`) is complete,
+> treat this as a test build.
 
 ## Table of Contents
 
 - [The Problem](#the-problem)
 - [What COLDIRON OS is](#what-coldiron-os-is)
+- [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [Encryption model](#encryption-model--two-independent-layers)
 - [Download](#download)
 - [Quickstart](#quickstart)
 - [In-image usage](#in-image-usage)
 - [Documentation](#documentation)
-- [Hardening notes (v0.1)](#hardening-notes-v01--honest-limitations)
-- [Roadmap](#roadmap)
+- [Hardening notes (honest limitations)](#hardening-notes-current--honest-limitations)
 - [License](#license)
 
 ## The Problem
@@ -76,6 +76,40 @@ live-build image that:
 - pairs with a **LUKS2-encrypted vault USB** for offline PSBT signing
   and optional encrypted seed backups.
 
+## Screenshots
+
+The launcher menu greets you after boot. Every option has a plain-language
+description, and a contextual tip walks you through your first session:
+
+![COLDIRON OS launcher menu](docs/screenshots/01-menu.png)
+
+Generate a brand-new wallet from **physical dice rolls** — the computer
+never creates randomness, it only assembles what your dice decide:
+
+![Dice-seed wallet — rolls and bias guard](docs/screenshots/02-dice-rolls.png)
+
+Your seed words appear once, for paper only:
+
+![Your seed — write it down](docs/screenshots/03-dice-phrase.png)
+
+An in-app **self-check** derives your first receive address (BIP84) and
+master fingerprint before you ever touch a wallet — compare both with what
+Sparrow shows after import:
+
+![Dice-seed self-check](docs/screenshots/04-dice-selfcheck.png)
+
+The first-time guide explains seeds, vaults and addresses in plain language:
+
+![First-time guide](docs/screenshots/05-guide.png)
+
+Once the encrypted vault is open, the menu tells you exactly what to do next:
+
+![Vault unlocked — contextual tip](docs/screenshots/06-vault-tip.png)
+
+Sparrow Wallet ships preinstalled for offline PSBT signing:
+
+![Sparrow Wallet](docs/screenshots/07-sparrow.png)
+
 ## Architecture
 
 ```
@@ -114,11 +148,12 @@ anything digitally.
 ## Download
 
 Prebuilt ISO: **[Releases](https://github.com/rurogge/coldiron-os/releases)**
-→ `coldiron-os-0.1.0-amd64.iso` + `SHA256SUMS`.
+→ `coldiron-os-0.2.0-amd64.iso` + `SHA256SUMS` (v0.2.0 adds the dice-seed
+wallet and the beginner guidance layer).
 
 ```sh
-sha256sum -c SHA256SUMS     # → coldiron-os-0.1.0-amd64.iso: OK
-sudo dd if=coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
+sha256sum -c SHA256SUMS     # → coldiron-os-0.2.0-amd64.iso: OK
+sudo dd if=coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ```
 
 Full install instructions: [docs/INSTALL.md](docs/INSTALL.md).
@@ -146,7 +181,7 @@ sudo ./build-root.sh            # on Debian hosts (or any host, simpler)
 sudo ./build-docker.sh
 ```
 
-~15–60 min, needs ~10 GB disk, 4 GB+ RAM. Output: `dist/coldiron-os-0.1.0-amd64.iso`
+~15–60 min, needs ~10 GB disk, 4 GB+ RAM. Output: `dist/coldiron-os-0.2.0-amd64.iso`
 
 ### 3. Test in QEMU
 
@@ -175,7 +210,7 @@ dd if=dist/coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
 | `coldiron-shutdown` | Unmount, close vault, drop caches, power off |
 | `coldiron-guide` | First-time guide (plain language) |
 
-> 🔑 **v0.1 default credentials:** the console **autologins as root** on tty1
+> 🔑 **Default credentials:** the console **autologins as root** on tty1
 > (the appliance is offline and RAM-only — physical possession of the USB
 > is the real authentication). The documented root password for other
 > ttys / serial is `coldiron`; change it with `passwd` if you rely on it.
@@ -208,13 +243,13 @@ config/
 dist/                                     built ISO lands here (gitignored)
 ```
 
-## Hardening notes (v0.1 — honest limitations)
+## Hardening notes (current — honest limitations)
 
 - `toram` + `noswap` + `noresume` + volatile logs → no persistent OS state.
 - Driver blacklist (wired/wifi/USB-ethernet/Bluetooth/FireWire/Thunderbolt)
   plus loopback-only `/etc/network/interfaces` and no network services.
   This makes networking **very hard to enable accidentally** — it is not
-  the same as a kernel without networking. That is v0.2.
+  the same as a kernel without networking. That remains future work.
 - Restrictive sysctls: `kptr_restrict=2`, `dmesg_restrict=1`, core dumps
   disabled, `kexec_load_disabled=1`, BPF hardened, IPv6 off.
 - AppArmor and nftables infrastructure present.
@@ -224,20 +259,7 @@ dist/                                     built ISO lands here (gitignored)
   bitcoincore.org tarball with the sha256 **pinned inside**
   scripts/fetch-binaries.sh (plus a cross-check against the official
   SHA256SUMS over HTTPS). Full SHA256SUMS.asc GPG verification with your own
-  keyring is part of the security pass on the roadmap.
-
-## Roadmap
-
-- **v0.2 — kernel-level networkless**: custom kernel with networking,
-  Bluetooth and USB-network stacks compiled out entirely.
-- **Security pass (before v1)**: reproducible build (live-build + SOURCE_DATE_EPOCH),
-  pinned artifact hashes, independent second-machine build comparison,
-  USBGuard peripheral policy, secure-boot strategy, seed-generation ceremony,
-  mandatory seed transcription verification, memory-handling review,
-  automated security tests, fwupd/system-update story.
-- **Branding**: trademark/domain check for "COLDIRON OS" before any
-  public release.
-- **Release**: GitHub repo + CI reproducible build + signed ISO releases.
+  keyring is planned for a future release.
 
 ## License
 
