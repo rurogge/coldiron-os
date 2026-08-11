@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# coldiron-guide — first-time guide (menu entry 7).
+#
+# Renders the plain-language guide from /usr/share/coldiron/guide.txt.
+# No set -e needed (nothing here can fail in a way that matters).
+set -uo pipefail
+
+GUIDE_FILE="${GUIDE_FILE:-/usr/share/coldiron/guide.txt}"
+
+if [ -f "${GUIDE_FILE}" ]; then
+  cat "${GUIDE_FILE}"
+else
+  echo "ERROR: guide file not found (${GUIDE_FILE})." >&2
+  echo "This should not happen — the guide ships inside the OS." >&2
+fi
+
+echo
+read -r -p "Press Enter to return to the menu." _ || true

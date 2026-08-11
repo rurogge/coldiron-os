@@ -1,39 +1,57 @@
 #!/bin/bash
 #
-# coldiron-menu — console launcher for COLDIRON OS.
+# coldiron-menu — console launcher for COLDIRON OS (v0.2.0).
 #
-# NOTE: deliberately NO `set -e` here — this is a launcher loop. The option
-# scripts below (coldiron-vault/digital-backup/restore) exit non-zero on ANY
-# failure (abort at consent, no vault USB, wrong passphrase, …). With `set -e`
-# that failure would kill the whole menu → xterm closes → black screen.
+# NOTE: deliberately NO `set -e` — this is a launcher loop. Every option
+# script exits non-zero on ANY failure (user aborts a consent prompt, no
+# vault USB, wrong passphrase, seed mismatch, …). With `set -e` that failure
+# would kill the whole menu → xterm closes → black screen (v0.1.0 bug, fixed
+# in v0.1.1, regression-tested in v0.2.0).
 set -uo pipefail
 
-while true; do
+. "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+
+VAULT_BACKUP_DIR="/mnt/vault/encrypted-seed-backups"
+
+menu_banner() {
   echo
-  echo "══════════════════════════════════════════════"
-  echo "   COLDIRON OS — Offline by design. Sovereign by default."
-  echo "══════════════════════════════════════════════"
-  echo "   1) Unlock vault"
-  echo "   2) Create encrypted seed backup"
-  echo "   3) Restore encrypted seed backup"
-  echo "   4) Launch Sparrow Wallet (graphical)"
-  echo "   5) Shut down securely"
-  echo "   q) Exit to shell"
-  echo "══════════════════════════════════════════════"
-  read -r -p "Choice: " CHOICE || exit 0
+  echo "══════════════════════════════════════════════════════════════════"
+  echo "   COLDIRON OS — your offline Bitcoin vault"
+  echo "   No internet needed. New here? Start with option 1 and follow in order."
+  echo "══════════════════════════════════════════════════════════════════"
+  printf "   %-4s %-30s → %s\n" "1)" "Generate seed from dice"       "new wallet from your dice rolls"
+  printf "   %-4s %-30s → %s\n" "2)" "Unlock vault"                  "open the encrypted USB storage"
+  printf "   %-4s %-30s → %s\n" "3)" "Create encrypted seed backup"  "save your words, encrypted, on USB"
+  printf "   %-4s %-30s → %s\n" "4)" "Restore encrypted seed backup" "recover a wallet from a backup"
+  printf "   %-4s %-30s → %s\n" "5)" "Launch Sparrow Wallet"         "see addresses, send and receive"
+  printf "   %-4s %-30s → %s\n" "6)" "Shut down securely"            "lock the vault and power off"
+  printf "   %-4s %-30s → %s\n" "7)" "First-time guide"              "plain-language guide (first-time)"
+  printf "   %-4s %-30s → %s\n" "q)" "Exit to shell"                 "leave the menu (advanced users)"
+  echo "══════════════════════════════════════════════════════════════════"
+  # Contextual tip: vault mounted but no encrypted seed backups yet.
+  if mountpoint -q /mnt/vault 2>/dev/null && ! compgen -G "${VAULT_BACKUP_DIR}"/*.age >/dev/null 2>&1; then
+    tip "no seed backups in the vault yet — after generating, run option 3."
+  fi
+}
+
+while true; do
+  menu_banner
+  read -r -p "   Choice: " CHOICE || exit 0
   case "${CHOICE}" in
-    1) coldiron-vault ;;
-    2) coldiron-digital-backup ;;
-    3) coldiron-restore ;;
-    4)
+    1) coldiron-dice-seed ;;
+    2) coldiron-vault ;;
+    3) coldiron-digital-backup ;;
+    4) coldiron-restore ;;
+    5)
       if [ -z "${DISPLAY:-}" ]; then
         startx -- /usr/bin/openbox-session
       else
         /opt/sparrow/bin/Sparrow &
       fi
       ;;
-    5) coldiron-shutdown ;;
+    6) coldiron-shutdown ;;
+    7) coldiron-guide ;;
     q|Q) exit 0 ;;
-    *) echo "Invalid choice." ;;
+    *) echo "   Invalid choice." ;;
   esac
 done

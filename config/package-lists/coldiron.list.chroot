@@ -19,6 +19,10 @@ pcscd
 opensc
 usbutils
 
+# ---- dice-seed wallet (BIP39 + BIP84 self-check derivation) ----
+python3-mnemonic
+python3-ecdsa
+
 # ---- QR (air-gapped PSBT transfer) ----
 qrencode
 zbar-tools

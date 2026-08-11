@@ -1,0 +1,25 @@
+COLDIRON — First-time guide (plain language)
+---------------------------------------------
+What is COLDIRON?  A computer with one job: keep your bitcoin
+safe, offline. It never connects to the internet.
+
+What is a seed?    Your 12 or 24 words. They ARE your bitcoin.
+Anyone with the words controls the money. Keep them private:
+written on paper, never photographed.
+
+What is a vault?   An encrypted folder on your USB drive.
+Your seed backups live inside it, locked with a passphrase.
+
+What is an address? Where people send you bitcoin. Safe to
+share. Sparrow makes it from your seed — never the reverse.
+
+Your first time — do these in order:
+  1. Option 1 — roll dice, write down the words. Check them twice.
+  2. Option 3 — back the words up, encrypted, on the vault USB.
+  3. Option 5 — open Sparrow, type the words, see your address.
+
+The rules (all matter):
+  • Never connect to the internet.
+  • Never photograph or type the words on any online device.
+  • Use fair dice (casino-grade, sharp corners).
+  • Paper is the primary backup; the vault copy is the spare.

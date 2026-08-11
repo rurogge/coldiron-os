@@ -2,7 +2,7 @@
 
 **Offline by design. Sovereign by default.**
 
-> ⚠️ **STATUS: PROTOTYPE (v0.1).** Do NOT trust this ISO with a valuable
+> ⚠️ **STATUS: PROTOTYPE (v0.2).** Do NOT trust this ISO with a valuable
 > seed yet. The v0.1 image makes networking extremely difficult to use by
 > accident (driver blacklist + no network services + restrictive sysctls),
 > but the kernel still contains its networking subsystem. A genuinely
@@ -160,7 +160,7 @@ device at all** — matching the appliance's threat model.
 ### 4. Write to USB
 
 ```sh
-dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
+dd if=dist/coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ```
 
 ## In-image usage
@@ -168,10 +168,12 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 | Command | Purpose |
 |---|---|
 | `coldiron-menu` | Launcher menu (also auto-starts with the desktop) |
+| `coldiron-dice-seed` | Generate a BIP39 wallet from dice rolls (+ `--test` mode) |
 | `coldiron-vault` | Unlock + mount the LUKS2 vault at `/mnt/vault` |
 | `coldiron-digital-backup` | Optional age-encrypted seed backup (seed entered twice + 3-word spot check) |
 | `coldiron-restore` | Decrypt a seed backup to the screen |
 | `coldiron-shutdown` | Unmount, close vault, drop caches, power off |
+| `coldiron-guide` | First-time guide (plain language) |
 
 > 🔑 **v0.1 default credentials:** the console **autologins as root** on tty1
 > (the appliance is offline and RAM-only — physical possession of the USB
@@ -181,7 +183,8 @@ dd if=dist/coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ## Documentation
 
 - [docs/INSTALL.md](docs/INSTALL.md) — download, verify, write to USB, first boot, vault setup
-- [docs/USAGE.md](docs/USAGE.md) — the launcher menu, PSBT signing workflow, seed backup/restore
+- [docs/USAGE.md](docs/USAGE.md) — the launcher menu, dice-wallet, PSBT signing workflow, seed backup/restore
+- [docs/dice-seed.md](docs/dice-seed.md) — dice entropy math, security notes, proven test vectors
 - [docs/BUILD.md](docs/BUILD.md) — build from source, verification model, troubleshooting
 - [docs/TESTING.md](docs/TESTING.md) — QEMU smoke test + serial-console harness
 - [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) — what this protects, against whom, honest limitations

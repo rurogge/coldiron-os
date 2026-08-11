@@ -12,6 +12,13 @@
 #
 set -euo pipefail
 
+. "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+
+describe \
+  "Makes an encrypted copy of your seed words inside the vault." \
+  "Your paper seed backup and the vault USB (unlocked)." \
+  "You'll type your seed twice and confirm 3 random words from it."
+
 MOUNT_POINT="/mnt/vault"
 BACKUP_DIR="${MOUNT_POINT}/encrypted-seed-backups"
 

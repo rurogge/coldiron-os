@@ -1,0 +1,293 @@
+#!/bin/bash
+#
+# coldiron-dice-seed — generate a BIP39 seed from physical dice rolls.
+# COLDIRON OS v0.2.0 · menu entry 1.
+#
+# Flow: warning + consent → word count → pair rolls (rejection-sampled,
+# bias-free) → BIP39 mnemonic (python3-mnemonic) → paper transcription →
+# re-entry verification (checksum-validated) → BIP84 self-check address +
+# master fingerprint (python3-ecdsa + embedded BIP32/bech32) → Sparrow
+# handoff → optional encrypted digital backup (option 3).
+#
+# Test mode:  coldiron-dice-seed --test [rolls-file]
+#   Reads one die face per line (no prompts, no consent), prints:
+#     MNEMONIC:<phrase> · ADDRESS:<addr> · FINGERPRINT:<fp>
+#   Used by the QEMU E2E with the proven roll vectors.
+#
+set -euo pipefail
+
+. "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+
+# ---------------------------------------------------------------------------
+# Embedded Python core (single audit surface — bech32 + BIP32 + fingerprint).
+# Host-proven byte-exact against BIP39/BIP84 spec vectors (2026-08-11).
+# ---------------------------------------------------------------------------
+PY="$(cat <<'PYEOF'
+import hashlib, hmac, sys
+from mnemonic import Mnemonic
+from ecdsa import SECP256k1, SigningKey
+
+CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+
+def bech32_polymod(values):
+    GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3]
+    chk = 1
+    for v in values:
+        b = chk >> 25
+        chk = (chk & 0x1ffffff) << 5 ^ v
+        for i in range(5):
+            chk ^= GEN[i] if ((b >> i) & 1) else 0
+    return chk
+
+def convertbits(data, frombits, tobits, pad=True):
+    acc = bits = 0; ret = []; maxv = (1 << tobits) - 1
+    for value in data:
+        acc = (acc << frombits) | value; bits += frombits
+        while bits >= tobits:
+            bits -= tobits; ret.append((acc >> bits) & maxv)
+    if pad and bits:
+        ret.append((acc << (tobits - bits)) & maxv)
+    return ret
+
+def segwit_addr(hrp, witver, witprog):
+    data = [witver] + convertbits(witprog, 8, 5)
+    values = [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp] + data + [0] * 6
+    polymod = bech32_polymod(values) ^ 1
+    checksum = [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
+    return hrp + '1' + ''.join(CHARSET[d] for d in data + checksum)
+
+def serP(pub):
+    point = pub.pubkey.point          # ecdsa API: VerifyingKey.pubkey.point
+    x, y = point.x(), point.y()
+    return (b'\x02' if y % 2 == 0 else b'\x03') + x.to_bytes(32, 'big')
+
+def master(seed):
+    I = hmac.new(b"Bitcoin seed", seed, hashlib.sha512).digest()
+    return I[:32], I[32:]
+
+def ckd_priv(k, c, index):
+    data = (b'\x00' + k) if index >= 0x80000000 \
+           else serP(SigningKey.from_string(k, curve=SECP256k1).verifying_key)
+    I = hmac.new(c, data + index.to_bytes(4, 'big'), hashlib.sha512).digest()
+    IL, IR = int.from_bytes(I[:32], 'big'), I[32:]
+    return ((IL + int.from_bytes(k, 'big')) % SECP256k1.order).to_bytes(32, 'big'), IR
+
+def derive(seed, path):
+    k, c = master(seed)
+    for idx in path:
+        k, c = ckd_priv(k, c, idx)
+    return SigningKey.from_string(k, curve=SECP256k1).verifying_key
+
+def hash160(b):
+    return hashlib.new('ripemd160', hashlib.sha256(b).digest()).digest()
+
+# m/84'/0'/0'/0/0 — level 4 is NON-hardened 0 (the path gotcha; hardened
+# there silently derives a valid-but-DIFFERENT address).
+PATH84 = [84 + 0x80000000, 0x80000000, 0x80000000, 0, 0]
+
+def mnemonic_from_rolls(bits, vals):
+    vals = [int(x) for x in vals.split()]
+    bitstream = ''.join(f'{v:05b}' for v in vals)
+    bitstream = bitstream[:bits]
+    if len(bitstream) < bits:
+        sys.stderr.write('ERROR: not enough rolls\n'); sys.exit(1)
+    entropy = int(bitstream, 2).to_bytes(bits // 8, 'big')
+    m = Mnemonic("english")
+    return m.to_mnemonic(entropy)
+
+def self_check(phrase):
+    m = Mnemonic("english")
+    if not m.check(phrase):
+        return None
+    seed = m.to_seed(phrase)
+    leaf = derive(seed, PATH84)
+    addr = segwit_addr("bc", 0, hash160(serP(leaf)))
+    mk, _ = master(seed)
+    fp = hash160(serP(SigningKey.from_string(mk, curve=SECP256k1).verifying_key))[:4].hex()
+    return addr, fp
+
+mode = sys.argv[1]
+if mode == "mnemonic":
+    bits = int(sys.argv[2]); vals = sys.argv[3]
+    phrase = mnemonic_from_rolls(bits, vals)
+    print("MNEMONIC:" + phrase)
+    words = phrase.split()
+    for i in range(0, len(words), 4):
+        print("  " + "   ".join(f"{j+1:>2}.{w}" for j, w in enumerate(words[i:i+4], i)))
+elif mode == "selfcheck":
+    phrase = sys.argv[2]
+    r = self_check(phrase)
+    if r is None:
+        print("INVALID"); sys.exit(1)
+    print("ADDRESS:" + r[0]); print("FINGERPRINT:" + r[1])
+PYEOF
+)"
+
+# ---------------------------------------------------------------------------
+# Test mode — deterministic, prompt-free (E2E harness)
+# ---------------------------------------------------------------------------
+if [ "${1:-}" = "--test" ]; then
+  ROLLFILE="${2:-/dev/stdin}"
+  VALS=""
+  BITS=""
+  while read -r face; do
+    [ -n "${face}" ] || continue
+    case "${face}" in [1-6]) ;; *) echo "BADROLL:${face}" >&2; exit 2 ;; esac
+    VALS="${VALS} ${face}"
+  done < "${ROLLFILE}"
+  # pair the faces in order (a,b), reject v>=32 pairs, stop at enough bits
+  VALS5=""; PAIRS=0; BITS=0
+  read -ra FACES <<<"${VALS}"
+  i=0
+  while [ "${i}" -lt "${#FACES[@]}" ]; do
+    a="${FACES[${i}]}"; b="${FACES[$((i+1))]}"
+    [ -n "${b:-}" ] && i=$((i+2)) || { echo "ODDROLLS" >&2; exit 2; }
+    v=$(( (a-1)*6 + (b-1) ))
+    if [ "${v}" -lt 32 ]; then
+      VALS5="${VALS5} ${v}"; PAIRS=$((PAIRS+1))
+    fi
+  done
+  # 12w=128 bits (26 pairs), 24w=256 bits (52 pairs) — infer from pair count
+  if [ "${PAIRS}" -ge 52 ]; then BITS=256; else BITS=128; fi
+  phrase="$(python3 - mnemonic "${BITS}" "${VALS5}" <<<"${PY}")"
+  echo "${phrase}" | head -1
+  check="$(python3 - selfcheck "$(echo "${phrase}" | head -1 | cut -d: -f2-)" <<<"${PY}")"
+  echo "${check}" | grep '^ADDRESS:' || true
+  echo "${check}" | grep '^FINGERPRINT:' || true
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Interactive mode
+# ---------------------------------------------------------------------------
+describe \
+  "Creates a brand-new wallet from YOUR dice rolls — no computer randomness." \
+  "Two physical dice (casino-grade recommended), paper and a pen." \
+  "You roll dice, type the faces, then write down the words it prints."
+
+header "GENERATE SEED FROM DICE — READ CAREFULLY"
+cat <<'WARN'
+
+  • These words will BECOME your bitcoin. Anyone with them controls it.
+  • The computer only assembles what YOUR dice decide — it never
+    generates randomness itself.
+  • Your rolls are only as random as your dice: use fair dice with
+    sharp corners and uniform pips (casino-grade).
+  • Everything happens in memory only. When the computer shuts down,
+    the words are gone — your PAPER is the backup.
+  • Never photograph the words, never type them into an online device.
+WARN
+confirm "Do you understand and accept these risks?" || exit 1
+
+echo
+echo "How many words do you want?"
+echo "   12 words = 52 rolls (128 bits of entropy)"
+echo "   24 words = 104 rolls (256 bits of entropy) — recommended for large amounts"
+while :; do
+  read -r -p "12 or 24? " WC
+  case "${WC}" in
+    12) BITS=128; PAIRS=26 ;;
+    24) BITS=256; PAIRS=52 ;;
+    *) echo "Please answer 12 or 24."; continue ;;
+  esac
+  break
+done
+
+# --- roll loop ---
+VALS5=""
+p=0
+while [ "${p}" -lt "${PAIRS}" ]; do
+  p=$((p+1))
+  while :; do
+    read -r -p "Pair ${p}/${PAIRS} — die A face? [1-6]: " A || exit 1
+    read -r -p "Pair ${p}/${PAIRS} — die B face? [1-6]: " B || exit 1
+    case "${A}" in [1-6]) ;; *) echo "Invalid face: ${A} (use 1-6)."; continue ;; esac
+    case "${B}" in [1-6]) ;; *) echo "Invalid face: ${B} (use 1-6)."; continue ;; esac
+    v=$(( (A-1)*6 + (B-1) ))
+    if [ "${v}" -ge 32 ]; then
+      echo "Bias guard: that pair maps outside the safe range — roll this pair again."
+      continue
+    fi
+    VALS5="${VALS5} ${v}"
+    break
+  done
+  echo "  … gathered ${p}/${PAIRS} pairs (${BITS} bits total)."
+done
+
+echo
+echo "==> Building your mnemonic…"
+OUT="$(python3 - mnemonic "${BITS}" "${VALS5}" <<<"${PY}")"
+PHRASE="$(echo "${OUT}" | head -1 | cut -d: -f2-)"
+
+echo
+header "YOUR SEED — WRITE IT DOWN NOW"
+echo
+echo "${OUT}" | tail -n +2
+echo
+cat <<'PAPER'
+
+  • Write these words on paper, in a private space.
+  • Check each word TWICE against what you see here.
+  • Keep the paper somewhere safe and dry. It IS your bitcoin.
+PAPER
+
+# --- verification (re-enter all words; BIP39 checksum catches typos) ---
+echo
+echo "==> Verification: re-enter ALL words (in order)."
+echo "    A single typo is caught by the checksum and we start over."
+attempt=0
+while :; do
+  attempt=$((attempt+1))
+  if [ "${attempt}" -gt 3 ]; then
+    echo "Too many attempts. Aborting — nothing was saved, start again when ready." >&2
+    exit 1
+  fi
+  read -r -s -p "Re-enter the ${BITS}-bit seed phrase: " RE; echo
+  if [ -z "${RE}" ]; then
+    echo "Empty entry — try again."
+    continue
+  fi
+  if [ "${RE}" != "${PHRASE}" ]; then
+    echo "The words do not match what was generated. Try again."
+    continue
+  fi
+  CHK="$(python3 - selfcheck "${RE}" <<<"${PY}" || true)"
+  if ! echo "${CHK}" | grep -q '^ADDRESS:'; then
+    echo "Checksum validation failed — a word is mistyped. Try again."
+    continue
+  fi
+  break
+done
+
+# --- self-check (the "worth the code" step) ---
+ADDR="$(echo "${CHK}" | grep '^ADDRESS:' | cut -d: -f2-)"
+FP="$(echo "${CHK}" | grep '^FINGERPRINT:' | cut -d: -f2-)"
+echo
+header "SELF-CHECK — PROVES THE WORDS ARE CORRECT"
+echo "  Your first receive address (BIP84, m/84'/0'/0'/0/0):"
+echo "    ${ADDR}"
+echo "  Master fingerprint: ${FP}"
+echo
+echo "  Compare BOTH with what Sparrow shows after import — they must match."
+echo "  (Sparrow displays the fingerprint at the top of the wallet screen.)"
+
+# --- Sparrow handoff ---
+echo
+header "NEXT STEP — SEE YOUR WALLET IN SPARROW"
+cat <<HANDOFF
+  1. From the main menu choose 5) Launch Sparrow Wallet.
+  2. New Wallet → Import existing → type your words.
+  3. Script type: Native SegWit (BIP84).
+  4. Compare the address and fingerprint above with Sparrow's.
+HANDOFF
+
+# --- optional digital backup ---
+echo
+read -r -p "Back up this seed now, encrypted, on the vault USB? [y/N]: " BAK
+if [ "${BAK}" = "y" ] || [ "${BAK}" = "Y" ]; then
+  echo
+  coldiron-digital-backup
+fi
+
+echo
+echo "✅ Done. Keep the paper safe — it is your wallet."

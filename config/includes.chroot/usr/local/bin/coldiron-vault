@@ -7,6 +7,13 @@
 #
 set -euo pipefail
 
+. "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+
+describe \
+  "Opens the encrypted storage on your USB drive and mounts it." \
+  "The vault USB drive (see docs/INSTALL.md to create one)." \
+  "You'll be asked for the LUKS passphrase. The vault stays open until shutdown."
+
 MOUNT_POINT="/mnt/vault"
 SUBDIRS="psbt descriptors labels xpubs encrypted-seed-backups checksums"
 

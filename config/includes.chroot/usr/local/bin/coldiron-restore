@@ -7,6 +7,13 @@
 #
 set -euo pipefail
 
+. "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+
+describe \
+  "Shows a seed from an encrypted backup on screen, to write on paper." \
+  "The vault USB and the age passphrase used when the backup was created." \
+  "You pick a backup, type DECRYPT, then enter its passphrase."
+
 MOUNT_POINT="/mnt/vault"
 BACKUP_DIR="${MOUNT_POINT}/encrypted-seed-backups"
 

@@ -4,16 +4,23 @@
 #
 set -euo pipefail
 
+. "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+
+describe \
+  "Unmounts the vault, locks it, and powers the computer off." \
+  "Nothing." \
+  "Safe to unplug and put away once the screen goes dark."
+
 sync
 
 if mountpoint -q /mnt/vault; then
   echo "==> Unmounting vault..."
-  umount /mnt/vault
+  umount /mnt/vault 2>/dev/null || echo "WARNING: unmount failed — continuing."
 fi
 
 if cryptsetup status vault >/dev/null 2>&1; then
   echo "==> Closing LUKS vault..."
-  cryptsetup close vault
+  cryptsetup close vault 2>/dev/null || echo "WARNING: close failed — forcing power off anyway."
 fi
 
 echo "==> Dropping caches and powering off."

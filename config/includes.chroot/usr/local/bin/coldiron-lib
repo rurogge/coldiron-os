@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# coldiron-lib — shared helpers for COLDIRON OS option scripts.
+#
+# Source with:
+#   . "${COLDIRON_LIB:-/usr/local/bin/coldiron-lib}"
+#
+# COLDIRON_LIB env override exists so host-side PATH-stub harnesses can test
+# the real scripts against a copy of this file.
+#
+# Plain-language rule: every user-facing string assumes a beginner. Short
+# sentences, define terms on first use, never assume Bitcoin knowledge.
+
+# header <title> — boxed section title
+header() {
+  echo
+  echo "────────────────────────────────────────────"
+  echo "  ${1}"
+  echo "────────────────────────────────────────────"
+}
+
+# describe <what> <need> <next> — beginner preamble shown at script start.
+#   what: one line: what this option DOES (plain words)
+#   need: what the user must have ready
+#   next: what is going to happen (so nothing surprises them)
+describe() {
+  echo
+  echo "  What this does      → ${1}"
+  echo "  What you need       → ${2}"
+  echo "  What happens next   → ${3}"
+  echo
+}
+
+# confirm <msg> — y/N prompt; exits 1 if the user declines (so `set -e`
+# scripts abort cleanly back to the menu, never with a traceback).
+confirm() {
+  local ans
+  read -r -p "${1} [y/N]: " ans || return 1
+  if [ "${ans}" = "y" ] || [ "${ans}" = "Y" ]; then
+    return 0
+  fi
+  echo "Aborted."
+  return 1
+}
+
+# tip <text> — hint line (used by the menu's contextual tips)
+tip() {
+  echo "   TIP: ${1}"
+}
