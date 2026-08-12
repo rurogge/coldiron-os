@@ -34,7 +34,7 @@ cp ../keys/boot/boot.gpg live/coldiron.pub
 echo "==> COLDIRON: signed ${found} live boot files for GRUB verification"
 
 # assertion: every kernel/initrd referenced by grub.cfg must be signed
-for f in $(grep -oE '/live/(vmlinuz|initrd\.img)-[^ ]+' boot/grub/grub.cfg | sort -u); do
+for f in $(grep -oE '/live/(vmlinuz|initrd\.img)[^ ]+' boot/grub/grub.cfg | sort -u); do
   base="$(basename "${f}")"
   if [ ! -f "live/${base}" ]; then
     echo "ERROR: grub.cfg references ${f} but the file is missing" >&2

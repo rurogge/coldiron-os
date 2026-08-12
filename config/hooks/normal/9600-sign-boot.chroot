@@ -14,10 +14,16 @@ KEYDIR=/usr/share/coldiron
 if [ -f "${KEYDIR}/boot.sec" ] && command -v gpg >/dev/null 2>&1; then
   GNUPGHOME="$(mktemp -d /tmp/bootsign.XXXXXX)"
   gpg --batch --quiet --homedir "${GNUPGHOME}" --import "${KEYDIR}/boot.sec"
+  # Sign into /boot/signatures/ — NOT /boot/ — because live-build's grub
+  # generator globs chroot/boot/vmlinuz-* and would emit menu entries for
+  # the .sig files (boot entries pointing at signatures).
+  SIGDIR=/boot/signatures
+  mkdir -p "${SIGDIR}"
   for f in /boot/vmlinuz-* /boot/initrd.img-*; do
     [ -f "${f}" ] || continue
+    case "${f}" in *.sig) continue ;; esac
     gpg --batch --quiet --homedir "${GNUPGHOME}" \
-        --detach-sign --output "${f}.sig" "${f}"
+        --detach-sign --output "${SIGDIR}/$(basename "${f}").sig" "${f}"
   done
   # binary keyring for gpgv (coldiron-check) — gpgv cannot read armored keys
   gpg --batch --quiet --homedir "${GNUPGHOME}" \

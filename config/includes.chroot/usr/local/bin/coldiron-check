@@ -81,11 +81,15 @@ BOOT_KEYRING=/usr/share/coldiron/boot-keyring.gpg
 boot_verify() {
   local okc=0 f
   [ -f "${BOOT_KEYRING}" ] || { echo "  ✘ FAIL: boot keyring missing (${BOOT_KEYRING})"; return 1; }
+  # sigs live in /boot/signatures/ (9600-sign-boot hook) — NOT next to the
+  # kernel: live-build's grub generator globs chroot/boot/vmlinuz-* and
+  # would emit menu entries for .sig files.
   for f in /boot/vmlinuz-* /boot/initrd.img-*; do
     [ -f "${f}" ] || continue
-    case "${f}" in *.sig) continue ;; esac   # the .sig siblings match the glob
-    if [ ! -f "${f}.sig" ]; then echo "  ✘ FAIL: no signature for ${f}"; return 1; fi
-    gpgv --quiet --keyring "${BOOT_KEYRING}" "${f}.sig" "${f}" 2>/dev/null \
+    case "${f}" in *.sig) continue ;; esac
+    sig="/boot/signatures/$(basename "${f}").sig"
+    if [ ! -f "${sig}" ]; then echo "  ✘ FAIL: no signature for ${f}"; return 1; fi
+    gpgv --quiet --keyring "${BOOT_KEYRING}" "${sig}" "${f}" 2>/dev/null \
       || { echo "  ✘ FAIL: signature invalid for ${f}"; return 1; }
     okc=$((okc+1))
   done

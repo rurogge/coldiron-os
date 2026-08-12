@@ -235,9 +235,9 @@ def syscheck():
     check('apparmor: profiles loaded', 'profiles are loaded' in t or 'profiles are in enforce' in t, t[-300:])
     t = run('cat /sys/module/apparmor/parameters/enabled 2>/dev/null')
     check('apparmor: enabled', 'Y' in t, t[-200:])
-    # signed boot files (Phase 1e)
-    t = run('ls /boot/vmlinuz-* /boot/initrd.img-* 2>/dev/null')
-    check('boot: signature files present', '.sig' in t and 'vmlinuz' in t, t[-300:])
+    # signed boot files (Phase 1e) — sigs live in /boot/signatures/
+    t = run('ls /boot/signatures/ 2>/dev/null')
+    check('boot: signature files present', '.sig' in t, t[-300:])
     t = run('coldiron-check --boot-verify 2>&1')
     check('boot: verification command passes', 'OK' in t and 'FAIL' not in t, t[-400:])
     # the built-in integrity script agrees
