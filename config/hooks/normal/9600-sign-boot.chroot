@@ -19,6 +19,10 @@ if [ -f "${KEYDIR}/boot.sec" ] && command -v gpg >/dev/null 2>&1; then
     gpg --batch --quiet --homedir "${GNUPGHOME}" \
         --detach-sign --output "${f}.sig" "${f}"
   done
+  # binary keyring for gpgv (coldiron-check) — gpgv cannot read armored keys
+  gpg --batch --quiet --homedir "${GNUPGHOME}" \
+      --no-default-keyring --keyring "${KEYDIR}/boot-keyring.gpg" \
+      --import "${KEYDIR}/boot-key.pub"
   rm -rf "${GNUPGHOME}"
   rm -f "${KEYDIR}/boot.sec"
   echo "==> COLDIRON: boot files signed; temporary private key removed"

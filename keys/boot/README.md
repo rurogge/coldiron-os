@@ -56,7 +56,9 @@ gpg --batch --pinentry-mode loopback --passphrase '' \
 - `config/bootloaders/grub-pc/grub.cfg` — `trust` + `verify_detached` +
   `check_signatures=enforce` before the `linux`/`initrd` lines.
 - `coldiron-check` — runtime re-verification of `/boot/vmlinuz-*` against
-  the embedded public key (`/usr/share/coldiron/boot-key.pub`).
+  the embedded public key (`/usr/share/coldiron/boot-keyring.gpg`, a
+  binary keyring built from `boot-key.pub` by the 9600 hook — gpgv cannot
+  read armored keys directly).
 
 ## Security rule
 

@@ -42,7 +42,9 @@ step "opt 1: dice-seed abort path"         python3 "$E2E/gui.py" opt1-abort
 step "opt 7: first-time guide"             python3 "$E2E/gui.py" opt7-guide
 step "opt 4: restore with no backups"      python3 "$E2E/gui.py" opt4-nobackups
 step "opt 3: backup abort path"            python3 "$E2E/gui.py" opt3-abort
+step "opt 8: security check all-pass"      python3 "$E2E/gui.py" opt8-check
 step "serial: in-image battery"            python3 "$E2E/drive.py" battery
+step "serial: security posture (syscheck)" python3 "$E2E/drive.py" syscheck
 step "serial: vault prep (LUKS2+ext4)"     python3 "$E2E/drive.py" vaultprep
 step "opt 2: unlock vault via menu"        python3 "$E2E/gui.py" opt2-unlock
 step "serial: vault MOUNTED after opt2"    python3 "$E2E/drive.py" mnt

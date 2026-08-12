@@ -129,6 +129,15 @@ def main():
         check('opt3: abort returns to menu', 'Generate seed from dice' in t)
         check('opt3: Aborted. line shown', 'Aborted' in t)     # soft
 
+    elif sub == 'opt8-check':
+        keys('8', 'ret')
+        t = wait_text('SYSTEM SECURITY CHECK', timeout=60)
+        check('opt8: header shown', 'SYSTEM SECURITY CHECK' in t, t[-200:])
+        t = wait_text('ALL CHECKS PASSED', timeout=120)
+        check('opt8: all checks passed', 'ALL CHECKS PASSED' in t, t[-300:])
+        keys('ret')
+        check('opt8: returns to menu', menu_reprinted())
+
     elif sub == 'opt2-unlock':
         keys('2', 'ret')
         t = wait_text('Scanning for LUKS2 vault devices', timeout=60)

@@ -18,4 +18,5 @@ profile /usr/local/bin/coldiron-check {
   /usr/bin/zcat ux,
   /boot/** r,
   /usr/share/coldiron/boot-key.pub r,
+  /usr/share/coldiron/boot-keyring.gpg r,
 }

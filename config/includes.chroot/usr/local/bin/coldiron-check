@@ -75,19 +75,23 @@ else
 fi
 
 # ------------------------------------------------------------------ boot integrity
+# gpgv needs a proper (binary) keyring — built from boot-key.pub by the
+# 9600-sign-boot chroot hook at image build time.
+BOOT_KEYRING=/usr/share/coldiron/boot-keyring.gpg
 boot_verify() {
   local okc=0 f
+  [ -f "${BOOT_KEYRING}" ] || { echo "  ✘ FAIL: boot keyring missing (${BOOT_KEYRING})"; return 1; }
   for f in /boot/vmlinuz-*; do
     [ -f "${f}" ] || continue
     if [ ! -f "${f}.sig" ]; then echo "  ✘ FAIL: no signature for ${f}"; return 1; fi
-    gpgv --quiet --keyring /usr/share/coldiron/boot-key.pub "${f}.sig" "${f}" 2>/dev/null \
+    gpgv --quiet --keyring "${BOOT_KEYRING}" "${f}.sig" "${f}" 2>/dev/null \
       || { echo "  ✘ FAIL: signature invalid for ${f}"; return 1; }
     okc=$((okc+1))
   done
   for f in /boot/initrd.img-*; do
     [ -f "${f}" ] || continue
     if [ ! -f "${f}.sig" ]; then echo "  ✘ FAIL: no signature for ${f}"; return 1; fi
-    gpgv --quiet --keyring /usr/share/coldiron/boot-key.pub "${f}.sig" "${f}" 2>/dev/null \
+    gpgv --quiet --keyring "${BOOT_KEYRING}" "${f}.sig" "${f}" 2>/dev/null \
       || { echo "  ✘ FAIL: signature invalid for ${f}"; return 1; }
     okc=$((okc+1))
   done
@@ -98,10 +102,10 @@ boot_verify() {
 if [ "${1:-}" = "--boot-verify" ]; then
   boot_verify && exit 0 || exit 1
 fi
-if [ -f /usr/share/coldiron/boot-key.pub ]; then
+if [ -f "${BOOT_KEYRING}" ]; then
   boot_verify || FAIL=$((FAIL+1))
 else
-  bad "boot public key missing (/usr/share/coldiron/boot-key.pub)"
+  bad "boot keyring missing (${BOOT_KEYRING})"
 fi
 
 # ------------------------------------------------------------------ summary
