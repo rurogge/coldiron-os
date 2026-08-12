@@ -115,6 +115,7 @@ Architecture: amd64
 Depends: linux-image-${KERNEL_VERSION}${LOCALVERSION}
 Section: kernel
 Priority: optional
+Maintainer: COLDIRON Project <coldiron@localhost>
 Description: COLDIRON OS networkless kernel (meta-package)
  This meta-package pulls the custom COLDIRON networkless kernel built
  from scripts/kernel/networkless.config + enable.config. It exists to
