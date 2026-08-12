@@ -18,10 +18,12 @@ trap 'rm -rf "${GNUPGHOME}"' EXIT
 gpg --batch --quiet --homedir "${GNUPGHOME}" --import ../keys/boot/boot.sec
 
 # sign every kernel + initramfs in /live (--yes: overwrite stale .sig
-# files left by a previous partial build — gpg refuses by default)
+# files left by a previous partial build — gpg refuses by default;
+# skip *.sig so we don't sign the signatures)
 found=0
 for f in live/vmlinuz-* live/initrd.img-*; do
   [ -f "${f}" ] || continue
+  case "${f}" in *.sig) continue ;; esac
   gpg --yes --batch --quiet --homedir "${GNUPGHOME}" \
       --detach-sign --output "${f}.sig" "${f}"
   found=$((found+1))

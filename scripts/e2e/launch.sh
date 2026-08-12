@@ -22,13 +22,18 @@ if [ "${1:-}" = "--fresh-vault" ]; then
 fi
 [ -f "$VAULT" ] || truncate -s 256M "$VAULT"
 
-# Extract kernel + initrd from the ISO (once per ISO)
+# Extract kernel + initrd from the ISO (once per ISO). The /live dir
+# contains *.sig siblings — the glob must exclude them (cp of multiple
+# sources to a file target fails).
 if [ ! -f "$E2E_DIR/vmlinuz" ] || [ ! -f "$E2E_DIR/initrd" ]; then
   mkdir -p /mnt/coldiron-iso
-  mount -o loop,ro "$ISO" /mnt/coldiron-iso
-  cp /mnt/coldiron-iso/live/vmlinuz-* "$E2E_DIR/vmlinuz"
-  cp /mnt/coldiron-iso/live/initrd.img-* "$E2E_DIR/initrd"
+  mount -o loop,ro "$ISO" /mnt/coldiron-iso || { echo "ERROR: cannot mount ISO"; exit 1; }
+  VML="$(ls /mnt/coldiron-iso/live/vmlinuz-* 2>/dev/null | grep -v '\.sig$' | head -1)"
+  INI="$(ls /mnt/coldiron-iso/live/initrd.img-* 2>/dev/null | grep -v '\.sig$' | head -1)"
   umount /mnt/coldiron-iso
+  [ -n "$VML" ] && [ -n "$INI" ] || { echo "ERROR: kernel/initrd not found on ISO"; exit 1; }
+  cp "$VML" "$E2E_DIR/vmlinuz"
+  cp "$INI" "$E2E_DIR/initrd"
 fi
 
 rm -f "$E2E_DIR/mon.sock" "$E2E_DIR/serial.sock"
