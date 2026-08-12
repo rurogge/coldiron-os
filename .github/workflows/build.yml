@@ -1,9 +1,18 @@
 name: build-iso
 
+# Release flow:
+#   maintainer signs + pushes tag vX.Y.Z  → this workflow builds the ISO
+#   from the tag and attaches ISO + SHA256SUMS to the release.
+#   The maintainer then attaches the detached GPG signatures
+#   (SHA256SUMS.asc, <iso>.asc) produced offline by scripts/sign-release.sh
+#   (see docs/SIGNING.md) — CI never holds the release key.
+#   Reproducibility: this CI build and the maintainer's local build must
+#   produce byte-identical ISOs (see .github/workflows/reproducible.yml).
+
 on:
   workflow_dispatch:        # manual: build and upload a CI ISO artifact
   push:
-    tags: ['v*']            # future: tag -> build ISO -> attach to the release
+    tags: ['v*']
 
 jobs:
   build-iso:
@@ -19,16 +28,46 @@ jobs:
         # CI is no exception. The fingerprint below is the trust anchor
         # documented in README/docs. The authoritative release ISO is
         # always built and GPG-verified by the maintainer locally — this
-        # artifact is for contributors and testing.
+        # artifact is for contributors and the reproducible-build diff.
         run: |
           gpg --keyserver keyserver.ubuntu.com --recv-keys D4D0D3202FC06849A257B38DE94618334C674B40
           gpg --export D4D0D3202FC06849A257B38DE94618334C674B40 \
             | gpg --no-default-keyring --keyring keys/sparrow.gpg --import
           gpg --no-default-keyring --keyring keys/sparrow.gpg --fingerprint
 
+      - name: Import Bitcoin Core release signing keys (pinned fingerprints)
+        run: |
+          gpg --keyserver keyserver.ubuntu.com --recv-keys \
+            152812300785C96444D3334D17565732E08E5E41 \
+            CFB16E21C950F67FA95E558F2EEB9F5CC09526C1 \
+            D1DBF2C4B96F2DEBF4C16654410108112E7EA81F \
+            0AD83877C1F0CD1EE9BD660AD7CC770B81FD22A8 \
+            F4FC70F07310028424EFC20A8E4256593F177720 \
+            5B286407E1EA6FE01CF9AF48BF131C2D0536F8AC \
+            E61773CD6E01040E2F1BD78CE7E2984B6289C93A \
+            637DB1E23370F84AFF88CCE03152347D07DA627C \
+            A0083660F235A27000CD3C81CE6EC49945C17EA6 \
+            ED9BDF7AD6A55E232E84524257FF9BDBCC301009 \
+            A8FC55F3B04BA3146F3492E79303B33A305224CB
+          gpg --export \
+            152812300785C96444D3334D17565732E08E5E41 \
+            CFB16E21C950F67FA95E558F2EEB9F5CC09526C1 \
+            D1DBF2C4B96F2DEBF4C16654410108112E7EA81F \
+            0AD83877C1F0CD1EE9BD660AD7CC770B81FD22A8 \
+            F4FC70F07310028424EFC20A8E4256593F177720 \
+            5B286407E1EA6FE01CF9AF48BF131C2D0536F8AC \
+            E61773CD6E01040E2F1BD78CE7E2984B6289C93A \
+            637DB1E23370F84AFF88CCE03152347D07DA627C \
+            A0083660F235A27000CD3C81CE6EC49945C17EA6 \
+            ED9BDF7AD6A55E232E84524257FF9BDBCC301009 \
+            A8FC55F3B04BA3146F3492E79303B33A305224CB \
+            | gpg --no-default-keyring --keyring keys/bitcoin.gpg --import
+
       - name: Build ISO (Debian trixie toolchain in a container)
+        env:
+          JOBS: "2"   # ubuntu-latest: 4 vCPUs / ~14 GB disk
         run: sudo ./build-docker.sh
-        timeout-minutes: 90
+        timeout-minutes: 300
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
