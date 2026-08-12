@@ -53,7 +53,8 @@ gpg --batch --pinentry-mode loopback --passphrase '' \
 - `config/hooks/binary/*.hook.binary` — signs the ISO's `/live/vmlinuz`
   and `/live/initrd.img` (the exact files GRUB loads) and drops
   `boot.pub` next to them.
-- `config/bootloaders/grub-pc/grub.cfg` — `trust` + `verify_detached` +
+- `config/bootloaders/grub-pc/grub.cfg` — `insmod pgp` + `trust` +
+  `verify_detached` (FILE then SIGFILE) with fail-fast `reboot`, then
   `check_signatures=enforce` before the `linux`/`initrd` lines.
 - `coldiron-check` — runtime re-verification of `/boot/vmlinuz-*` against
   the embedded public key (`/usr/share/coldiron/boot-keyring.gpg`, a

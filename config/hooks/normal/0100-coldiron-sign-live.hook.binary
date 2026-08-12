@@ -27,7 +27,7 @@ for f in live/vmlinuz-* live/initrd.img-*; do
 done
 [ "${found}" -ge 2 ] || { echo "ERROR: expected ≥2 live boot files, found ${found}" >&2; exit 1; }
 
-cp ../keys/boot/boot.pub live/coldiron.pub
+cp ../keys/boot/boot.gpg live/coldiron.pub
 echo "==> COLDIRON: signed ${found} live boot files for GRUB verification"
 
 # assertion: every kernel/initrd referenced by grub.cfg must be signed
