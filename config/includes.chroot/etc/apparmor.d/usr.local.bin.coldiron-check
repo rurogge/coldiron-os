@@ -8,6 +8,8 @@ profile /usr/local/bin/coldiron-check {
 
   deny network,
 
+  /{usr/,}bin/bash mr,   # interpreter mmap under px transitions
+
   /usr/local/bin/coldiron-lib r,
   /{usr/,}bin/cat ux,
   /{usr/,}bin/grep ux,

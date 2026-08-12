@@ -8,6 +8,8 @@ profile /usr/local/bin/coldiron-digital-backup {
 
   deny network,
 
+  /{usr/,}bin/bash mr,   # interpreter mmap under px transitions
+
   /usr/local/bin/coldiron-lib r,
   /usr/local/bin/coldiron-vault px,
   /{usr/,}bin/age ux,
@@ -21,4 +23,12 @@ profile /usr/local/bin/coldiron-digital-backup {
   /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
   /dev/tty rw,                   # interactive menu I/O
   /dev/ttyS0 rw,                 # serial console (E2E / remote)
+  /{usr/,}bin/cat ux,
+  /{usr/,}bin/cut ux,
+  /{usr/,}bin/grep ux,
+  /{usr/,}bin/head ux,
+  /{usr/,}bin/tail ux,
+  /{usr/,}bin/chmod ux,
+  /{usr/,}bin/rm ux,
+  /{usr/,}bin/mountpoint ux,
 }
