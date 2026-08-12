@@ -62,9 +62,9 @@ KVM=()
 [ -e /dev/kvm ] && [ -w /dev/kvm ] && KVM=(-enable-kvm -cpu host)
 timeout 90 qemu-system-x86_64 "${KVM[@]}" -m 512 \
   -kernel "${VMLINUZ}" -initrd "${T}/initrd.img" \
-  -append 'console=ttyS0' \
+  -append 'console=ttyS0 rdinit=/init' \
   -display none -serial stdio -no-reboot \
-  < /dev/null 2>&1 | tee "${T}/boot.log" | head -60
+  < /dev/null 2>&1 | tee "${T}/boot.log" || true
 
 echo
 echo "==> Assertions"
