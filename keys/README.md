@@ -50,7 +50,13 @@ E617 73CD 6E01 040E 2F1B D78C E7E2 984B 6289 C93A
 637D B1E2 3370 F84A FF88 CCE0 3152 347D 07DA 627C
 A008 3660 F235 A270 00CD 3C81 CE6E C499 45C1 7EA6
 ED9B DF7A D6A5 5E23 2E84 5242 57FF 9BDB CC30 1009
+A8FC 55F3 B04B A314 6F34 92E7 9303 B33A 3052 24CB   (sebastiankung)
 ```
+
+(The last one is Sebastian Kung's primary key; its signing subkey signed
+the v31.1 sums. Signers rotate — the build accepts the release if at
+least ONE signature from a key in your keyring is valid, so a future
+signer you have not imported does not break verification.)
 
 Import them and create this project's keyring:
 
@@ -65,7 +71,8 @@ gpg --keyserver keyserver.ubuntu.com --recv-keys \
   E61773CD6E01040E2F1BD78CE7E2984B6289C93A \
   637DB1E23370F84AFF88CCE03152347D07DA627C \
   A0083660F235A27000CD3C81CE6EC49945C17EA6 \
-  ED9BDF7AD6A55E232E84524257FF9BDBCC301009
+  ED9BDF7AD6A55E232E84524257FF9BDBCC301009 \
+  A8FC55F3B04BA3146F3492E79303B33A305224CB
 gpg --export \
   152812300785C96444D3334D17565732E08E5E41 \
   CFB16E21C950F67FA95E558F2EEB9F5CC09526C1 \
@@ -77,6 +84,7 @@ gpg --export \
   637DB1E23370F84AFF88CCE03152347D07DA627C \
   A0083660F235A27000CD3C81CE6EC49945C17EA6 \
   ED9BDF7AD6A55E232E84524257FF9BDBCC301009 \
+  A8FC55F3B04BA3146F3492E79303B33A305224CB \
   | gpg --no-default-keyring --keyring keys/bitcoin.gpg --import
 gpg --no-default-keyring --keyring keys/bitcoin.gpg --fingerprint
 ```

@@ -124,8 +124,24 @@ curl -fL "${BITCOIN_SUMS_URL}" -o "${TMP}/SHA256SUMS"
 curl -fL "${BITCOIN_SUMS_ASC_URL}" -o "${TMP}/SHA256SUMS.asc"
 
 say "Verifying SHA256SUMS.asc signature with ${BITCOIN_KEYRING}"
-gpg --no-default-keyring --keyring "${BITCOIN_KEYRING}" \
-    --verify "${TMP}/SHA256SUMS.asc" "${TMP}/SHA256SUMS"
+# Bitcoin Core's SHA256SUMS.asc accumulates signatures from many signers
+# over time; a release may be signed by a key not yet in the user keyring.
+# gpg --verify then fails on that unknown signature even though every
+# known key verified. The robust check: at least one GOOD signature from
+# a key in OUR keyring (the out-of-band trust anchor), and no BADSIG.
+if ! gpg --status-fd 1 --no-default-keyring --keyring "${BITCOIN_KEYRING}" \
+       --verify "${TMP}/SHA256SUMS.asc" "${TMP}/SHA256SUMS" 2>/dev/null \
+   | grep -q '^\[GNUPG:\] GOODSIG'; then
+  echo "ERROR: no valid signature from a trusted Bitcoin Core key." >&2
+  exit 1
+fi
+if gpg --status-fd 1 --no-default-keyring --keyring "${BITCOIN_KEYRING}" \
+       --verify "${TMP}/SHA256SUMS.asc" "${TMP}/SHA256SUMS" 2>/dev/null \
+   | grep -q '^\[GNUPG:\] BADSIG'; then
+  echo "ERROR: BADSIG from a known key — the sums file is compromised." >&2
+  exit 1
+fi
+echo "  ✔ signature valid (≥1 trusted key; no bad signatures)"
 
 say "Verifying sha256 (pinned: ${BITCOIN_SHA256:0:16}...)"
 ACTUAL="$(sha256sum "${TMP}/${BITCOIN_TGZ}" | cut -d' ' -f1)"
