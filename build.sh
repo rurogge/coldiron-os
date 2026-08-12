@@ -101,6 +101,28 @@ fi
 mkdir -p config/packages
 cp -f "dist/kernel/${KIMG}" config/packages/
 
+# live-build schedules `linux-image-${LB_LINUX_FLAVOURS}` (coldiron) for
+# installation via chroot/root/packages.chroot — a meta-package that does
+# not exist upstream. Build a tiny local meta that depends on our custom
+# kernel .deb (also in config/packages/, so apt resolves both locally).
+say "Building linux-image-coldiron meta-package..."
+META_T="$(mktemp -d /tmp/coldiron-meta.XXXXXX)"
+mkdir -p "${META_T}/DEBIAN"
+cat > "${META_T}/DEBIAN/control" <<EOF
+Package: linux-image-coldiron
+Version: ${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}
+Architecture: amd64
+Depends: linux-image-${KERNEL_VERSION}${LOCALVERSION}
+Section: kernel
+Priority: optional
+Description: COLDIRON OS networkless kernel (meta-package)
+ This meta-package pulls the custom COLDIRON networkless kernel built
+ from scripts/kernel/networkless.config + enable.config. It exists to
+ satisfy live-build's --linux-flavours package scheduling.
+EOF
+dpkg-deb --build "${META_T}" "config/packages/linux-image-coldiron_${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}_amd64.deb" >/dev/null
+rm -rf "${META_T}"
+
 # ---------------------------------------------------------------- clean (optional)
 if [ "${1:-}" = "clean" ]; then
   say "Cleaning previous build (config kept)..."
