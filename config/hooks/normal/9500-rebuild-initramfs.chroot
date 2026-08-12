@@ -10,10 +10,19 @@
 # full package install and rebuilds every initramfs, so live-boot
 # support is guaranteed for the shipped kernel.
 #
+# NOTE: `-u -k all` silently does NOTHING here — it discovers kernels
+# via /lib/modules and skips kernels without an existing initrd.
+# Use `-c` (create) with explicit versions enumerated from /boot/vmlinuz-*.
+#
 set -e
 
 if command -v update-initramfs >/dev/null 2>&1; then
-  update-initramfs -u -k all 2>/dev/null || true
+  for vml in /boot/vmlinuz-*; do
+    [ -e "${vml}" ] || continue
+    ver="${vml#/boot/vmlinuz-}"
+    echo "COLDIRON: building initramfs for ${ver}..."
+    update-initramfs -c -k "${ver}" 2>/dev/null || true
+  done
 fi
 
 exit 0
