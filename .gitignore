@@ -51,5 +51,9 @@ keys/*.gpg~
 # fetched third-party binaries (downloaded + verified by scripts/fetch-binaries.sh)
 config/includes.chroot/opt/bitcoin/
 
+# custom networkless kernel package (built by scripts/build-kernel.sh)
+dist/kernel/
+config/packages/*.deb
+
 # lb build root artifacts
 live-image-amd64.*

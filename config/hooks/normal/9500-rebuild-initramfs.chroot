@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# 9500-rebuild-initramfs.chroot — regenerate the initramfs for every
+# installed kernel AFTER all packages are installed.
+#
+# The custom networkless kernel .deb (from config/packages/) triggers
+# update-initramfs in its postinst, but at that point live-boot's
+# initramfs hooks may not be installed yet — which would produce an
+# initramfs that cannot boot a live system. This hook runs after the
+# full package install and rebuilds every initramfs, so live-boot
+# support is guaranteed for the shipped kernel.
+#
+set -e
+
+if command -v update-initramfs >/dev/null 2>&1; then
+  update-initramfs -u -k all 2>/dev/null || true
+fi
+
+exit 0
