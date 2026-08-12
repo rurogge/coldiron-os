@@ -141,6 +141,7 @@ lb config \
   --distribution "${DISTRIBUTION}" \
   --archive-areas "main contrib non-free-firmware" \
   --linux-flavours "coldiron" \
+  --bootloader grub-pc \
   --binary-image iso-hybrid \
   --debian-installer false \
   --iso-application "COLDIRON OS" \
