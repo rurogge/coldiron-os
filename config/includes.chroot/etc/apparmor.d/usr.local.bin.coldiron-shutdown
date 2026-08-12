@@ -1,0 +1,17 @@
+# COLDIRON OS — AppArmor profile for the secure shutdown.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile /usr/local/bin/coldiron-shutdown {
+  include <abstractions/base>
+  include <abstractions/bash>
+
+  deny network,
+
+  /usr/local/bin/coldiron-lib r,
+  /usr/bin/umount ux,
+  /usr/sbin/cryptsetup ux,
+  /usr/bin/sync ux,
+  /usr/bin/systemctl ux,
+  /usr/sbin/poweroff ux,
+}

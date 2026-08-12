@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# 0100-coldiron-sign-live.hook.binary — sign the /live kernel + initramfs
+# (the EXACT files GRUB loads) with the COLDIRON boot key and drop the
+# public key next to them, so the ISO's grub.cfg can verify them before
+# execution. Also asserts that everything grub.cfg references is signed.
+#
+# Runs at the binary stage (CWD = binary root), AFTER the live kernel
+# files are copied (binary_linux-image) and AFTER grub.cfg is generated
+# (binary_grub_cfg).
+#
+# See keys/boot/README.md for the security model.
+#
+set -e
+
+GNUPGHOME="$(mktemp -d /tmp/bootsign-live.XXXXXX)"
+trap 'rm -rf "${GNUPGHOME}"' EXIT
+gpg --batch --quiet --homedir "${GNUPGHOME}" --import ../keys/boot/boot.sec
+
+# sign every kernel + initramfs in /live
+found=0
+for f in live/vmlinuz-* live/initrd.img-*; do
+  [ -f "${f}" ] || continue
+  gpg --batch --quiet --homedir "${GNUPGHOME}" \
+      --detach-sign --output "${f}.sig" "${f}"
+  found=$((found+1))
+done
+[ "${found}" -ge 2 ] || { echo "ERROR: expected ≥2 live boot files, found ${found}" >&2; exit 1; }
+
+cp ../keys/boot/boot.pub live/coldiron.pub
+echo "==> COLDIRON: signed ${found} live boot files for GRUB verification"
+
+# assertion: every kernel/initrd referenced by grub.cfg must be signed
+for f in $(grep -oE '/live/(vmlinuz|initrd\.img)-[^ ]+' boot/grub/grub.cfg | sort -u); do
+  base="$(basename "${f}")"
+  if [ ! -f "live/${base}" ]; then
+    echo "ERROR: grub.cfg references ${f} but the file is missing" >&2
+    exit 1
+  fi
+  if [ ! -f "live/${base}.sig" ]; then
+    echo "ERROR: grub.cfg references ${f} but it is NOT SIGNED" >&2
+    exit 1
+  fi
+  echo "  ✔ signed: ${f}"
+done

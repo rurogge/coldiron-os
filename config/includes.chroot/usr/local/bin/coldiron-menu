@@ -26,6 +26,7 @@ menu_banner() {
   printf "   %-4s %-30s → %s\n" "5)" "Launch Sparrow Wallet"         "see addresses, send and receive"
   printf "   %-4s %-30s → %s\n" "6)" "Shut down securely"            "lock the vault and power off"
   printf "   %-4s %-30s → %s\n" "7)" "First-time guide"              "plain-language guide (first-time)"
+  printf "   %-4s %-30s → %s\n" "8)" "System security check"         "verify the appliance is intact"
   printf "   %-4s %-30s → %s\n" "q)" "Exit to shell"                 "leave the menu (advanced users)"
   echo "══════════════════════════════════════════════════════════════════"
   # Contextual tip: vault mounted but no encrypted seed backups yet.
@@ -51,6 +52,7 @@ while true; do
       ;;
     6) coldiron-shutdown ;;
     7) coldiron-guide ;;
+    8) coldiron-check ;;
     q|Q) exit 0 ;;
     *) echo "   Invalid choice." ;;
   esac

@@ -32,7 +32,7 @@ KERNEL_VERSION="${KERNEL_VERSION:-6.12.101}"
 KERNEL_REV="${KERNEL_REV:-1}"
 LOCALVERSION="-coldiron"
 PKG_VERSION="${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}"
-OUT_DIR="dist/kernel"
+OUT_DIR="$(pwd)/dist/kernel"      # absolute — the script cd's into the build tree
 DEB_VERSION="${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}"
 # image package filename produced by bindeb-pkg (LOCALVERSION is the suffix)
 IMG_DEB="linux-image-${KERNEL_VERSION}${LOCALVERSION}_${DEB_VERSION}_amd64.deb"
@@ -76,10 +76,12 @@ tar -xf "${TARBALL}" -C "${BUILD_DIR}/linux" --strip-components=1
 cd "${BUILD_DIR}/linux"
 
 # ---------------------------------------------------------------- config
-STOCK_CONFIG="$(find "${BUILD_DIR}/cfg" -name 'config-*amd64' | head -1)"
-[ -n "${STOCK_CONFIG}" ] || { echo "ERROR: amd64 config not found in ${CFG_DEB}." >&2; exit 1; }
-say "Starting from stock Debian config: ${STOCK_CONFIG}"
-cp "${STOCK_CONFIG}" .config
+# The linux-config deb ships xz-compressed per-flavour configs; the plain
+# amd64 flavour is what linux-image-amd64 uses.
+STOCK_CONFIG_XZ="$(find "${BUILD_DIR}/cfg" -name 'config.amd64_none_amd64.xz' | head -1)"
+[ -n "${STOCK_CONFIG_XZ}" ] || { echo "ERROR: amd64 config not found in ${CFG_DEB}." >&2; exit 1; }
+say "Starting from stock Debian config: ${STOCK_CONFIG_XZ}"
+xz -dc "${STOCK_CONFIG_XZ}" > .config
 
 say "Applying networkless fragment (${FRAGMENT})..."
 REPO_ROOT="$(pwd)"

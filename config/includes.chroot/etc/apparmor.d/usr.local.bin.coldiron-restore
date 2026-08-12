@@ -1,0 +1,17 @@
+# COLDIRON OS — AppArmor profile for the seed restore.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile /usr/local/bin/coldiron-restore {
+  include <abstractions/base>
+  include <abstractions/bash>
+
+  deny network,
+
+  /usr/local/bin/coldiron-lib r,
+  /usr/local/bin/coldiron-vault px,
+  /usr/bin/age ux,
+  /usr/bin/mountpoint ux,
+  /bin/ls ux,
+  /mnt/vault/** r,
+}

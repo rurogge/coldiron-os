@@ -54,6 +54,9 @@ config/includes.chroot/opt/bitcoin/
 # custom networkless kernel package (built by scripts/build-kernel.sh)
 dist/kernel/
 config/packages/*.deb
+# kernel source/config debs downloaded by scripts/build-kernel.sh
+linux-source-*.deb
+linux-config-*.deb
 
 # lb build root artifacts
 live-image-amd64.*

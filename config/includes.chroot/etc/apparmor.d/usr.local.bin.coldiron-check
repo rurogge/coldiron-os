@@ -1,0 +1,21 @@
+# COLDIRON OS — AppArmor profile for the security check.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile /usr/local/bin/coldiron-check {
+  include <abstractions/base>
+  include <abstractions/bash>
+
+  deny network,
+
+  /usr/local/bin/coldiron-lib r,
+  /bin/ls ux,
+  /bin/cat ux,
+  /bin/grep ux,
+  /usr/bin/gpgv ux,
+  /usr/bin/aa-status ux,
+  /usr/sbin/nft ux,
+  /usr/bin/zcat ux,
+  /boot/** r,
+  /usr/share/coldiron/boot-key.pub r,
+}

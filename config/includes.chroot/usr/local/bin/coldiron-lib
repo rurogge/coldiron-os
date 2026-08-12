@@ -47,3 +47,8 @@ confirm() {
 tip() {
   echo "   TIP: ${1}"
 }
+
+# note <text> — non-fatal observation (used by coldiron-check)
+note() {
+  echo "   NOTE: ${1}"
+}

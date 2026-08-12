@@ -1,0 +1,20 @@
+# COLDIRON OS — AppArmor profile for the dice-seed generator.
+# Confines the bash process running the script: no network, only the
+# expected helpers may be executed. (See keys/boot/README.md for the
+# security model — the networkless kernel makes the network deny
+# redundant; this is defense in depth.)
+abi <abi/4.0>,
+include <tunables/global>
+
+profile /usr/local/bin/coldiron-dice-seed {
+  include <abstractions/base>
+  include <abstractions/bash>
+
+  deny network,
+
+  /usr/local/bin/coldiron-lib r,
+  /usr/bin/python3 ux,
+  /usr/bin/python3.* ux,
+  /usr/local/bin/coldiron-digital-backup px,
+  /dev/urandom r,
+}

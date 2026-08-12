@@ -95,16 +95,16 @@ def mnemonic_from_rolls(bits, vals):
     m = Mnemonic("english")
     return m.to_mnemonic(entropy)
 
-def self_check(phrase):
+def self_check(phrase, passphrase=''):
     m = Mnemonic("english")
     if not m.check(phrase):
         return None
-    seed = m.to_seed(phrase)
+    seed = m.to_seed(phrase, passphrase)
     leaf = derive(seed, PATH84)
     addr = segwit_addr("bc", 0, hash160(serP(leaf)))
     mk, _ = master(seed)
     fp = hash160(serP(SigningKey.from_string(mk, curve=SECP256k1).verifying_key))[:4].hex()
-    return addr, fp
+    return seed, addr, fp
 
 mode = sys.argv[1]
 if mode == "mnemonic":
@@ -116,18 +116,23 @@ if mode == "mnemonic":
         print("  " + "   ".join(f"{j+1:>2}.{w}" for j, w in enumerate(words[i:i+4], i)))
 elif mode == "selfcheck":
     phrase = sys.argv[2]
-    r = self_check(phrase)
+    passphrase = sys.argv[3] if len(sys.argv) > 3 else ''
+    r = self_check(phrase, passphrase)
     if r is None:
         print("INVALID"); sys.exit(1)
-    print("ADDRESS:" + r[0]); print("FINGERPRINT:" + r[1])
+    seed, addr, fp = r
+    print("SEED:" + seed.hex())
+    print("ADDRESS:" + addr); print("FINGERPRINT:" + fp)
 PYEOF
 )"
 
 # ---------------------------------------------------------------------------
 # Test mode — deterministic, prompt-free (E2E harness)
+#   coldiron-dice-seed --test [rolls-file] [passphrase]
 # ---------------------------------------------------------------------------
 if [ "${1:-}" = "--test" ]; then
   ROLLFILE="${2:-/dev/stdin}"
+  PASSPHRASE="${3:-}"
   VALS=""
   BITS=""
   # read the final line even when the file has no trailing newline
@@ -157,7 +162,13 @@ if [ "${1:-}" = "--test" ]; then
   if [ "${PAIRS}" -ge 52 ]; then BITS=256; else BITS=128; fi
   phrase="$(python3 - mnemonic "${BITS}" "${VALS5}" <<<"${PY}")"
   echo "${phrase}" | head -1
-  check="$(python3 - selfcheck "$(echo "${phrase}" | head -1 | cut -d: -f2-)" <<<"${PY}")"
+  PHRASE="$(echo "${phrase}" | head -1 | cut -d: -f2-)"
+  if [ -n "${PASSPHRASE}" ]; then
+    check="$(python3 - selfcheck "${PHRASE}" "${PASSPHRASE}" <<<"${PY}")"
+  else
+    check="$(python3 - selfcheck "${PHRASE}" <<<"${PY}")"
+  fi
+  echo "${check}" | grep '^SEED:' || true
   echo "${check}" | grep '^ADDRESS:' || true
   echo "${check}" | grep '^FINGERPRINT:' || true
   exit 0
@@ -265,6 +276,55 @@ while :; do
   break
 done
 
+# --- optional passphrase (BIP39 "25th word") ---
+PASSPHRASE=""
+echo
+read -r -p "Add a passphrase — an extra secret of your own? [y/N]: " WANT_PP
+if [ "${WANT_PP}" = "y" ] || [ "${WANT_PP}" = "Y" ]; then
+  echo
+  cat <<'PPWARN'
+
+  A passphrase is an extra secret that works with your words (the
+  "25th word").
+    • Without it, the words ALONE cannot spend your bitcoin.
+    • It is NEVER stored anywhere — not in the encrypted backup,
+      not in this computer's memory after shutdown. If you forget
+      it, your money is unrecoverable.
+    • Write it on a SEPARATE piece of paper, kept apart from the
+      words. Both are needed together.
+    • Choose something you can type exactly, every time.
+PPWARN
+  while :; do
+    read -r -s -p "Enter passphrase (hidden): " PP1; echo
+    read -r -s -p "Repeat passphrase: " PP2; echo
+    if [ -z "${PP1}" ]; then
+      echo "Empty passphrase — try again."
+      continue
+    fi
+    if [ "${PP1}" != "${PP2}" ]; then
+      echo "The two entries differ — try again."
+      continue
+    fi
+    PASSPHRASE="${PP1}"
+    if [ "${#PASSPHRASE}" -lt 8 ]; then
+      echo "Warning: under 8 characters — easy to forget AND to guess."
+      read -r -p "Keep it anyway? [y/N]: " KEEP
+      if [ "${KEEP}" != "y" ] && [ "${KEEP}" != "Y" ]; then
+        continue
+      fi
+    fi
+    break
+  done
+  # self-check must be derived from words + passphrase
+  CHK="$(python3 - selfcheck "${PHRASE}" "${PASSPHRASE}" <<<"${PY}" || true)"
+  if ! echo "${CHK}" | grep -q '^ADDRESS:'; then
+    echo "ERROR: passphrase derivation failed — aborting (nothing was saved)." >&2
+    exit 1
+  fi
+  echo
+  echo "  ✔ Passphrase set. Remember: words + passphrase = your wallet."
+fi
+
 # --- self-check (the "worth the code" step) ---
 ADDR="$(echo "${CHK}" | grep '^ADDRESS:' | cut -d: -f2-)"
 FP="$(echo "${CHK}" | grep '^FINGERPRINT:' | cut -d: -f2-)"
@@ -273,6 +333,9 @@ header "SELF-CHECK — PROVES THE WORDS ARE CORRECT"
 echo "  Your first receive address (BIP84, m/84'/0'/0'/0/0):"
 echo "    ${ADDR}"
 echo "  Master fingerprint: ${FP}"
+if [ -n "${PASSPHRASE}" ]; then
+  echo "  (derived with your passphrase — the words alone give a DIFFERENT address)"
+fi
 echo
 echo "  Compare BOTH with what Sparrow shows after import — they must match."
 echo "  (Sparrow displays the fingerprint at the top of the wallet screen.)"
@@ -286,9 +349,18 @@ cat <<HANDOFF
   3. Script type: Native SegWit (BIP84).
   4. Compare the address and fingerprint above with Sparrow's.
 HANDOFF
+if [ -n "${PASSPHRASE}" ]; then
+  echo "  5. Sparrow asks about a passphrase — enter the one you just set"
+  echo "     (New Wallet → use the passphrase field)."
+fi
 
 # --- optional digital backup ---
 echo
+if [ -n "${PASSPHRASE}" ]; then
+  echo "  NOTE: the encrypted backup stores only the words — never the passphrase."
+  echo "  The passphrase exists only on your paper. Do not type it into the backup."
+  echo
+fi
 read -r -p "Back up this seed now, encrypted, on the vault USB? [y/N]: " BAK
 if [ "${BAK}" = "y" ] || [ "${BAK}" = "Y" ]; then
   echo

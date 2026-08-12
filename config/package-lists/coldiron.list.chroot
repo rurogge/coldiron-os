@@ -52,3 +52,8 @@ dosfstools
 parted
 hdparm
 gpg
+
+# ---- confinement & packet policy (v0.3 security pass) ----
+apparmor
+apparmor-utils
+nftables

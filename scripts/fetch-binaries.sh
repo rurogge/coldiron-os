@@ -10,11 +10,13 @@
 #
 # Artifacts handled here:
 #   - Sparrow Wallet ${SPARROW_VERSION} — signed-manifest verification
+#   - Bitcoin Core CLI tools ${BITCOIN_VERSION} — SHA256SUMS.asc GPG
+#     verification against keys/bitcoin.gpg + pinned sha256 cross-check
 #
-# Verification flow (mirrors sparrowwallet.com/download → "Verifying the Release"):
-#   1. gpg --verify the detached signature on the release manifest
-#      (keyring: keys/sparrow.gpg, imported by YOU out-of-band)
-#   2. recompute sha256 of the archive and compare with the manifest entry
+# Verification flow (mirrors the official instructions for each project):
+#   1. gpg --verify the detached signature on the release manifest /
+#      SHA256SUMS.asc (keyrings under keys/, imported by YOU out-of-band)
+#   2. recompute sha256 of the archive and compare with the verified sum
 #
 set -euo pipefail
 
@@ -41,10 +43,8 @@ need_keyring() {
     echo "ERROR: missing keyring ${kr} (${what})." >&2
     echo >&2
     echo "  The build refuses to verify with a key fetched on the spot." >&2
-    echo "  Import the signing key out-of-band, then:" >&2
-    echo "    gpg --keyserver keyserver.ubuntu.com --recv-keys ${SPARROW_FINGERPRINT}" >&2
-    echo "    gpg --export ${SPARROW_FINGERPRINT} | gpg --no-default-keyring --keyring ${kr} --import" >&2
-    echo "    gpg --no-default-keyring --keyring ${kr} --fingerprint   # confirm it" >&2
+    echo "  Import the signing key(s) out-of-band, then retry. See:" >&2
+    echo "    keys/README.md   (fingerprints + import commands)" >&2
     exit 1
   fi
 }
@@ -101,22 +101,31 @@ echo "  ✔ Sparrow ${SPARROW_VERSION} manifest verified and staged."
 # ---------------------------------------------------------------- Bitcoin Core CLI tools
 # NOT a Debian package (bitcoin-core was removed from Debian years ago).
 # We stage the official bitcoincore.org binaries instead.
-# Verification (v0.1): the sha256 of the release tarball is PINNED below —
-# the build refuses to continue unless the download matches BOTH the pinned
-# hash AND the official SHA256SUMS served over HTTPS. Full GPG verification
-# of SHA256SUMS.asc against a user-supplied keyring (keys/bitcoin.gpg) is
-# part of the security pass on the roadmap.
+# Verification: SHA256SUMS.asc is GPG-verified against keys/bitcoin.gpg
+# (the official release signing keys, imported by YOU out-of-band — see
+# keys/README.md), AND the sha256 of the release tarball is pinned below,
+# so the download must match BOTH the verified sums file AND the pinned
+# hash. Two independent checks, one of them rooted in your own trust.
 BITCOIN_VERSION="${BITCOIN_VERSION:-31.1}"
 BITCOIN_TGZ="bitcoin-${BITCOIN_VERSION}-x86_64-linux-gnu.tar.gz"
 BITCOIN_BASE_URL="https://bitcoincore.org/bin/bitcoin-core-${BITCOIN_VERSION}"
 BITCOIN_TGZ_URL="${BITCOIN_BASE_URL}/${BITCOIN_TGZ}"
 BITCOIN_SUMS_URL="${BITCOIN_BASE_URL}/SHA256SUMS"
+BITCOIN_SUMS_ASC_URL="${BITCOIN_BASE_URL}/SHA256SUMS.asc"
 BITCOIN_SHA256="b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e"
+BITCOIN_KEYRING="keys/bitcoin.gpg"
 BITCOIN_DEST="config/includes.chroot/opt/bitcoin"
 
-say "Downloading ${BITCOIN_TGZ} (+ SHA256SUMS)"
+need_keyring "${BITCOIN_KEYRING}" "Bitcoin Core release signing keys"
+
+say "Downloading ${BITCOIN_TGZ} (+ SHA256SUMS + SHA256SUMS.asc)"
 curl -fL "${BITCOIN_TGZ_URL}" -o "${TMP}/${BITCOIN_TGZ}"
 curl -fL "${BITCOIN_SUMS_URL}" -o "${TMP}/SHA256SUMS"
+curl -fL "${BITCOIN_SUMS_ASC_URL}" -o "${TMP}/SHA256SUMS.asc"
+
+say "Verifying SHA256SUMS.asc signature with ${BITCOIN_KEYRING}"
+gpg --no-default-keyring --keyring "${BITCOIN_KEYRING}" \
+    --verify "${TMP}/SHA256SUMS.asc" "${TMP}/SHA256SUMS"
 
 say "Verifying sha256 (pinned: ${BITCOIN_SHA256:0:16}...)"
 ACTUAL="$(sha256sum "${TMP}/${BITCOIN_TGZ}" | cut -d' ' -f1)"
@@ -128,7 +137,7 @@ if [ "${ACTUAL}" != "${BITCOIN_SHA256}" ] || [ "${SUMS_ENTRY}" != "${BITCOIN_SHA
   echo "  actual:  ${ACTUAL}" >&2
   exit 1
 fi
-echo "  ✔ sha256 matches pinned hash and official SHA256SUMS"
+echo "  ✔ sha256 matches pinned hash and GPG-verified SHA256SUMS"
 
 say "Extracting to ${BITCOIN_DEST}"
 rm -rf "${BITCOIN_DEST}"

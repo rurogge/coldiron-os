@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# 9600-sign-boot.chroot — sign /boot kernel + initramfs with the COLDIRON
+# boot key so coldiron-check can verify them at runtime, and REMOVE the
+# temporary private key before the rootfs is packed (it must never ship).
+#
+# The keypair is a BUILD COMPONENT, not a trust anchor — see
+# keys/boot/README.md. The authenticity chain is the release signature
+# (SHA256SUMS.asc); this check is corruption/tamper belt+braces.
+#
+set -e
+
+KEYDIR=/usr/share/coldiron
+if [ -f "${KEYDIR}/boot.sec" ] && command -v gpg >/dev/null 2>&1; then
+  GNUPGHOME="$(mktemp -d /tmp/bootsign.XXXXXX)"
+  gpg --batch --quiet --homedir "${GNUPGHOME}" --import "${KEYDIR}/boot.sec"
+  for f in /boot/vmlinuz-* /boot/initrd.img-*; do
+    [ -f "${f}" ] || continue
+    gpg --batch --quiet --homedir "${GNUPGHOME}" \
+        --detach-sign --output "${f}.sig" "${f}"
+  done
+  rm -rf "${GNUPGHOME}"
+  rm -f "${KEYDIR}/boot.sec"
+  echo "==> COLDIRON: boot files signed; temporary private key removed"
+fi
+
+exit 0
