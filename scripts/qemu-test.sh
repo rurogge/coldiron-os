@@ -15,7 +15,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-ISO="${1:-dist/coldiron-os-0.1.0-amd64.iso}"
+# Default ISO derives from build.sh's VERSION (single source of truth)
+DEFAULT_ISO="dist/coldiron-os-$(sed -n 's/^VERSION="\([^"]*\)"/\1/p' "$(dirname "$0")/../build.sh")-amd64.iso"
+ISO="${1:-${DEFAULT_ISO}}"
 VAULT="${2:-/tmp/coldiron-vault-test.img}"
 RAM_MB="${RAM_MB:-4096}"
 

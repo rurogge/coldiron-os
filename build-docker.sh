@@ -25,7 +25,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 IMG="debian:trixie"
-ISO="dist/coldiron-os-0.2.0-amd64.iso"
+# ISO path derives from build.sh's VERSION (single source of truth)
+VERSION="$(sed -n 's/^VERSION="\([^"]*\)"/\1/p' build.sh)"
+[ -n "${VERSION}" ] || { echo "ERROR: could not read VERSION from build.sh" >&2; exit 1; }
+ISO="dist/coldiron-os-${VERSION}-amd64.iso"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "ERROR: run as root (docker needs the daemon socket): sudo ./build-docker.sh" >&2

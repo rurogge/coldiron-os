@@ -20,7 +20,10 @@ cd "$(dirname "$0")"
 
 FPR="D4D0D3202FC06849A257B38DE94618334C674B40"   # Sparrow signing key
 KEYRING="keys/sparrow.gpg"
-ISO="dist/coldiron-os-0.1.0-amd64.iso"
+# ISO path derives from build.sh's VERSION (single source of truth)
+VERSION="$(sed -n 's/^VERSION="\([^"]*\)"/\1/p' build.sh)"
+[ -n "${VERSION}" ] || { echo "ERROR: could not read VERSION from build.sh" >&2; exit 1; }
+ISO="dist/coldiron-os-${VERSION}-amd64.iso"
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
