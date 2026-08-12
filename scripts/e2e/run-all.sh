@@ -70,6 +70,16 @@ step "opt 5: Sparrow wallet window"        python3 "$E2E/gui.py" opt5-sparrow
 python3 "$E2E/mon.py" quit
 sleep 3
 
+# ============ BOOT 3 ============
+echo ">>> BOOT 3 (real GRUB path — verified boot chain)"
+bash "$E2E/launch-grub.sh"
+sleep 60
+# GRUB boots the default entry after timeout=10; if the signature check
+# failed, the desktop never appears and this step times out (FAIL).
+step "grub-boot: desktop reached (verified boot passed)" python3 "$E2E/gui.py" wait-menu
+python3 "$E2E/mon.py" quit
+sleep 3
+
 echo
 echo "=========================================="
 echo "E2E RESULT: $((ALL-FAILED))/$ALL steps passed"

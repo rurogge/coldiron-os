@@ -27,6 +27,7 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+REPO_ROOT="$(pwd)"   # captured BEFORE any cd into the build tree
 
 KERNEL_VERSION="${KERNEL_VERSION:-6.12.101}"
 KERNEL_REV="${KERNEL_REV:-1}"
@@ -60,17 +61,21 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
 
 # ---------------------------------------------------------------- source (verified by apt)
 say "Downloading ${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV} (apt-verified)..."
+# download into the BUILD_DIR (not the repo root — keeps the working tree
+# clean and avoids apt's _apt user permission warnings on bind mounts)
+cd "${BUILD_DIR}"
 apt-get download "${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
 apt-get download "${LINUX_CONFIG_PKG}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
+cd "${REPO_ROOT}"
 
 SRC_DEB="${LINUX_SOURCE_PKG}_${KERNEL_VERSION}-${KERNEL_REV}_all.deb"
 CFG_DEB="${LINUX_CONFIG_PKG}_${KERNEL_VERSION}-${KERNEL_REV}_amd64.deb"
-[ -f "${SRC_DEB}" ] || { echo "ERROR: ${SRC_DEB} not downloaded." >&2; exit 1; }
-[ -f "${CFG_DEB}" ] || { echo "ERROR: ${CFG_DEB} not downloaded." >&2; exit 1; }
+[ -f "${BUILD_DIR}/${SRC_DEB}" ] || { echo "ERROR: ${SRC_DEB} not downloaded." >&2; exit 1; }
+[ -f "${BUILD_DIR}/${CFG_DEB}" ] || { echo "ERROR: ${CFG_DEB} not downloaded." >&2; exit 1; }
 
 mkdir -p "${BUILD_DIR}/src" "${BUILD_DIR}/cfg"
-dpkg-deb -x "${SRC_DEB}" "${BUILD_DIR}/src"
-dpkg-deb -x "${CFG_DEB}" "${BUILD_DIR}/cfg"
+dpkg-deb -x "${BUILD_DIR}/${SRC_DEB}" "${BUILD_DIR}/src"
+dpkg-deb -x "${BUILD_DIR}/${CFG_DEB}" "${BUILD_DIR}/cfg"
 TARBALL="$(find "${BUILD_DIR}/src" -name 'linux-source-*.tar.xz' | head -1)"
 [ -n "${TARBALL}" ] || { echo "ERROR: kernel source tarball not found in ${SRC_DEB}." >&2; exit 1; }
 
@@ -88,7 +93,6 @@ say "Starting from stock Debian config: ${STOCK_CONFIG_XZ}"
 xz -dc "${STOCK_CONFIG_XZ}" > .config
 
 say "Applying networkless fragment (${FRAGMENT})..."
-REPO_ROOT="$(pwd)"
 # fragment lines: CONFIG_X=y | CONFIG_X=n | CONFIG_STR="" — applied via scripts/config
 while IFS= read -r line; do
   [ -n "${line}" ] || continue
