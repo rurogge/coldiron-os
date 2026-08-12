@@ -224,9 +224,10 @@ def syscheck():
     t = run('cat /proc/net/dev')
     check('net: /proc/net/dev has only lo', re.search(r'^\s*lo:', t, re.M) is not None and
           len(re.findall(r'^\s*\S+:', t, re.M)) == 1, t[-300:])
-    # no loadable modules
-    t = run('ls /lib/modules/ 2>/dev/null | wc -l')
-    check('net: no module dirs', re.search(r'[\r\n]0[\r\n]', t) is not None, t[-200:])
+    # no loadable modules (the kernel deb ships an EMPTY /lib/modules dir —
+    # count .ko files, not directories)
+    t = run('find /lib/modules -name *.ko 2>/dev/null | wc -l')
+    check('net: no module files', re.search(r'[\r\n]0[\r\n]', t) is not None, t[-200:])
     t = run('lsmod')
     check('net: lsmod empty', re.search(r'^\s*$', t.splitlines()[-1] if t.splitlines() else '') is not None
           or 'Module' not in t, t[-300:])
@@ -239,10 +240,10 @@ def syscheck():
     t = run('ls /boot/signatures/ 2>/dev/null')
     check('boot: signature files present', '.sig' in t, t[-300:])
     t = run('coldiron-check --boot-verify 2>&1')
-    check('boot: verification command passes', 'OK' in t and 'FAIL' not in t, t[-400:])
+    check('boot: verification command passes', 'PASS' in t and 'FAIL' not in t, t[-400:])
     # the built-in integrity script agrees
     t = run('coldiron-check 2>&1', timeout=60)
-    for s in ['NETWORKLESS', 'NO-MODULES', 'APPARMOR']:
+    for s in ['only loopback interface exists', 'no loadable kernel modules', 'AppArmor is enabled']:
         check(f'syscheck: coldiron-check reports {s}', s in t, t[-600:])
 
 def checkcmd():
