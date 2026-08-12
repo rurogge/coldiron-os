@@ -1,0 +1,79 @@
+name: reproducible-build
+
+# INDEPENDENT SECOND BUILDER for the reproducible-build check.
+#
+# The maintainer builds the release ISO locally; this workflow builds the
+# same commit on GitHub's runners. Byte-identical ISOs (sha256) prove the
+# build is reproducible. Compare:
+#
+#   sha256sum coldiron-os-*.iso            # local build
+#   gh run download <run> -n coldiron-iso  # CI artifact
+#   sha256sum coldiron-os-*.iso            # must match
+#
+# NOTE on key handling: the project refuses to auto-download signing keys
+# (see keys/README.md) — the AUTHORITATIVE release ISO is always built and
+# GPG-verified by the maintainer locally. This workflow only exists to be
+# the second, independent builder for the byte-diff; it imports the pinned
+# official fingerprints (Sparrow + Bitcoin Core) exactly as documented.
+# Artifacts from this workflow are for comparison/testing, never release.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import Sparrow signing key (pinned fingerprint)
+        run: |
+          gpg --keyserver keyserver.ubuntu.com --recv-keys D4D0D3202FC06849A257B38DE94618334C674B40
+          gpg --export D4D0D3202FC06849A257B38DE94618334C674B40 \
+            | gpg --no-default-keyring --keyring keys/sparrow.gpg --import
+
+      - name: Import Bitcoin Core release signing keys (pinned fingerprints)
+        run: |
+          gpg --keyserver keyserver.ubuntu.com --recv-keys \
+            152812300785C96444D3334D17565732E08E5E41 \
+            CFB16E21C950F67FA95E558F2EEB9F5CC09526C1 \
+            D1DBF2C4B96F2DEBF4C16654410108112E7EA81F \
+            0AD83877C1F0CD1EE9BD660AD7CC770B81FD22A8 \
+            F4FC70F07310028424EFC20A8E4256593F177720 \
+            5B286407E1EA6FE01CF9AF48BF131C2D0536F8AC \
+            E61773CD6E01040E2F1BD78CE7E2984B6289C93A \
+            637DB1E23370F84AFF88CCE03152347D07DA627C \
+            A0083660F235A27000CD3C81CE6EC49945C17EA6 \
+            ED9BDF7AD6A55E232E84524257FF9BDBCC301009
+          gpg --export \
+            152812300785C96444D3334D17565732E08E5E41 \
+            CFB16E21C950F67FA95E558F2EEB9F5CC09526C1 \
+            D1DBF2C4B96F2DEBF4C16654410108112E7EA81F \
+            0AD83877C1F0CD1EE9BD660AD7CC770B81FD22A8 \
+            F4FC70F07310028424EFC20A8E4256593F177720 \
+            5B286407E1EA6FE01CF9AF48BF131C2D0536F8AC \
+            E61773CD6E01040E2F1BD78CE7E2984B6289C93A \
+            637DB1E23370F84AFF88CCE03152347D07DA627C \
+            A0083660F235A27000CD3C81CE6EC49945C17EA6 \
+            ED9BDF7AD6A55E232E84524257FF9BDBCC301009 \
+            | gpg --no-default-keyring --keyring keys/bitcoin.gpg --import
+
+      - name: Build ISO (trixie toolchain in a container, capped parallelism)
+        # ubuntu-latest has 4 vCPUs / ~14 GB disk — cap kernel build jobs
+        # to fit (see scripts/build-kernel.sh JOBS env).
+        env:
+          JOBS: "2"
+        run: sudo ./build-docker.sh
+        timeout-minutes: 300
+
+      - name: Upload ISO + checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: coldiron-iso
+          path: |
+            dist/*.iso
+            dist/SHA256SUMS
+          if-no-files-found: error

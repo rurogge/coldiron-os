@@ -23,6 +23,26 @@ DISTRIBUTION="trixie"
 ARCH="amd64"
 OUT="dist/coldiron-os-${VERSION}-${ARCH}.iso"
 
+# ---------------------------------------------------------------- reproducible build
+# SOURCE_DATE_EPOCH pins every timestamp in the ISO (live-build normalizes
+# the binary tree against it, initramfs-tools honors it, the kernel build
+# inherits it). The value is COMMITTED (source-date-epoch) — two builds
+# with the same value must produce byte-identical ISOs; bump it per release.
+export SOURCE_DATE_EPOCH="$(cat source-date-epoch 2>/dev/null || true)"
+if [ -z "${SOURCE_DATE_EPOCH}" ]; then
+  SOURCE_DATE_EPOCH="$(date +%s)"
+  echo "WARNING: source-date-epoch file missing — using now (${SOURCE_DATE_EPOCH})." >&2
+  echo "         Commit source-date-epoch for reproducible builds." >&2
+  export SOURCE_DATE_EPOCH
+fi
+
+# The base image is pinned to a snapshot.debian.org date so the package
+# set is frozen (reproducibility). Bump SNAPSHOT_DATE together with
+# source-date-epoch when a release is prepared.
+SNAPSHOT_DATE="${SNAPSHOT_DATE:-20260803T000000Z}"
+SNAPSHOT_DEBIAN="http://snapshot.debian.org/archive/debian/${SNAPSHOT_DATE}/"
+SNAPSHOT_SECURITY="http://snapshot.debian.org/archive/debian-security/${SNAPSHOT_DATE}/"
+
 # ---------------------------------------------------------------- helpers
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
@@ -89,6 +109,10 @@ fi
 
 # ---------------------------------------------------------------- configure
 say "Configuring live-build (${DISTRIBUTION}/${ARCH})..."
+# Normalize the mtimes of every file that ships in the image rootfs:
+# live-build only normalizes the binary tree, not the chroot — without
+# this, includes.chroot file timestamps would differ between builds.
+find config/includes.chroot -exec touch -d "@${SOURCE_DATE_EPOCH}" {} + 2>/dev/null || true
 lb config \
   --mode debian \
   --distribution "${DISTRIBUTION}" \
@@ -103,6 +127,11 @@ lb config \
   --memtest none \
   --firmware-binary false \
   --firmware-chroot false \
+  --mirror-bootstrap "${SNAPSHOT_DEBIAN}" \
+  --mirror-chroot "${SNAPSHOT_DEBIAN}" \
+  --mirror-binary "${SNAPSHOT_DEBIAN}" \
+  --mirror-chroot-security "${SNAPSHOT_SECURITY}" \
+  --mirror-binary-security "${SNAPSHOT_SECURITY}" \
   --bootappend-live "boot=live config toram noswap noresume quiet loglevel=3 ipv6.disable=1 apparmor=1 security=apparmor" \
   --apt-indices false \
   --apt-options "-y --option Acquire::Retries=3" \

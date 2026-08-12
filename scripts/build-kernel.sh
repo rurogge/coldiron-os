@@ -30,6 +30,10 @@ cd "$(dirname "$0")/.."
 
 KERNEL_VERSION="${KERNEL_VERSION:-6.12.101}"
 KERNEL_REV="${KERNEL_REV:-1}"
+# the Debian binary package names are "linux-source-6.12" / "linux-config-6.12"
+# (6.12.101-1 is their VERSION, not part of the name)
+LINUX_SOURCE_PKG="linux-source-6.12"
+LINUX_CONFIG_PKG="linux-config-6.12"
 LOCALVERSION="-coldiron"
 PKG_VERSION="${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}"
 OUT_DIR="$(pwd)/dist/kernel"      # absolute — the script cd's into the build tree
@@ -55,12 +59,12 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
   rsync cpio kmod dpkg-dev file zstd
 
 # ---------------------------------------------------------------- source (verified by apt)
-say "Downloading linux-source-${KERNEL_VERSION}=${KERNEL_VERSION}-${KERNEL_REV} (apt-verified)..."
-apt-get download "linux-source-${KERNEL_VERSION}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
-apt-get download "linux-config-${KERNEL_VERSION}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
+say "Downloading ${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV} (apt-verified)..."
+apt-get download "${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
+apt-get download "${LINUX_CONFIG_PKG}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
 
-SRC_DEB="linux-source-${KERNEL_VERSION}_${KERNEL_VERSION}-${KERNEL_REV}_all.deb"
-CFG_DEB="linux-config-${KERNEL_VERSION}_${KERNEL_VERSION}-${KERNEL_REV}_amd64.deb"
+SRC_DEB="${LINUX_SOURCE_PKG}_${KERNEL_VERSION}-${KERNEL_REV}_all.deb"
+CFG_DEB="${LINUX_CONFIG_PKG}_${KERNEL_VERSION}-${KERNEL_REV}_amd64.deb"
 [ -f "${SRC_DEB}" ] || { echo "ERROR: ${SRC_DEB} not downloaded." >&2; exit 1; }
 [ -f "${CFG_DEB}" ] || { echo "ERROR: ${CFG_DEB} not downloaded." >&2; exit 1; }
 
@@ -132,7 +136,8 @@ echo "  ✔ config sanity checks passed (networkless, monolithic, boot-critical 
 # ---- build ----------------------------------------------------------------
 say "Building kernel + image package (this takes 30-60 min on 8 cores)..."
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
-make -j"$(nproc)" bindeb-pkg KDEB_PKGVERSION="${DEB_VERSION}" LOCALVERSION="${LOCALVERSION}"
+JOBS="${JOBS:-$(nproc)}"   # allow CI/small machines to cap parallelism
+make -j"${JOBS}" bindeb-pkg KDEB_PKGVERSION="${DEB_VERSION}" LOCALVERSION="${LOCALVERSION}"
 
 # ---------------------------------------------------------------- output
 IMG_DEB_PATH="$(find .. -maxdepth 1 -name "${IMG_DEB}" | head -1)"
