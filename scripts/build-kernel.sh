@@ -43,6 +43,7 @@ DEB_VERSION="${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}"
 IMG_DEB="linux-image-${KERNEL_VERSION}${LOCALVERSION}_${DEB_VERSION}_amd64.deb"
 FRAGMENT="scripts/kernel/networkless.config"
 BUILD_DIR="$(mktemp -d /tmp/coldiron-kernel.XXXXXX)"
+chmod 755 "${BUILD_DIR}"   # apt's _apt user needs read access for downloads
 trap 'rm -rf "${BUILD_DIR}"' EXIT
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -94,9 +95,12 @@ xz -dc "${STOCK_CONFIG_XZ}" > .config
 
 say "Applying networkless fragment (${FRAGMENT})..."
 # fragment lines: CONFIG_X=y | CONFIG_X=n | CONFIG_STR="" — applied via scripts/config
+# (trailing "# comment" on a line is stripped; comment-only lines skipped)
 while IFS= read -r line; do
   [ -n "${line}" ] || continue
   case "${line}" in \#*) continue ;; esac
+  line="${line%%#*}"          # strip inline comment
+  [ -n "${line}" ] || continue
   key="${line%%=*}"
   val="${line#*=}"
   case "${val}" in
