@@ -46,7 +46,7 @@ ls /sys/class/net
 echo "--- /lib/modules ---"
 ls /lib/modules 2>&1 || echo "(absent)"
 echo "--- kernel config (networkless flags) ---"
-zcat /proc/config.gz 2>/dev/null | grep -E 'CONFIG_(NETDEVICES|NETFILTER|MODULES|IKCONFIG_PROC)=' || echo "(no /proc/config.gz)"
+zcat /proc/config.gz 2>/dev/null | grep -E 'CONFIG_(NETDEVICES|NETFILTER|MODULES|IKCONFIG_PROC)(=| is not set)' || echo "(no /proc/config.gz)"
 echo "--- dmesg net drivers ---"
 dmesg 2>/dev/null | grep -iE 'eth0|wlan|wifi|bluetooth|link ready' | head -5 || true
 echo "--- fs support ---"
@@ -71,13 +71,13 @@ echo "==> Assertions"
 FAIL=0
 grep -q "QUICKBOOT: ${KERNEL_UNAME}" "${T}/boot.log" && echo "  ✔ kernel version (${KERNEL_UNAME})" || { echo "  ✘ kernel version"; FAIL=1; }
 grep -q 'QUICKBOOT-DONE' "${T}/boot.log" && echo "  ✔ booted to init" || { echo "  ✘ did not reach init"; FAIL=1; }
-NET=$(sed -n '/--- \/sys\/class\/net ---/,/--- \/lib\/modules ---/p' "${T}/boot.log" | grep -vE '^---|^$')
+NET=$(sed -n '/--- \/sys\/class\/net ---/,/--- \/lib\/modules ---/p' "${T}/boot.log" | grep -vE '^---|^$' | tr -d '\r')
 [ "${NET}" = "lo" ] && echo "  ✔ only lo" || { echo "  ✘ network ifaces: ${NET}"; FAIL=1; }
 grep -q '(absent)' "${T}/boot.log" && echo "  ✔ no /lib/modules" || { echo "  ✘ /lib/modules present"; FAIL=1; }
 grep -q 'CONFIG_NETDEVICES is not set' "${T}/boot.log" && echo "  ✔ CONFIG_NETDEVICES=n" || { echo "  ✘ NETDEVICES check"; FAIL=1; }
 grep -q 'CONFIG_MODULES is not set' "${T}/boot.log" && echo "  ✔ CONFIG_MODULES=n" || { echo "  ✘ MODULES check"; FAIL=1; }
 for fs in squashfs overlay iso9660 ext4; do
-  grep -q "^${fs}" "${T}/boot.log" && echo "  ✔ ${fs} built-in" || { echo "  ✘ ${fs} missing"; FAIL=1; }
+  grep -qE "(^|\s)${fs}(\s|$)" "${T}/boot.log" && echo "  ✔ ${fs} built-in" || { echo "  ✘ ${fs} missing"; FAIL=1; }
 done
 echo
 [ "${FAIL}" -eq 0 ] && echo "QUICKBOOT RESULT: PASS" || echo "QUICKBOOT RESULT: FAIL"
