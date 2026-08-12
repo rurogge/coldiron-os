@@ -42,6 +42,7 @@ DEB_VERSION="${KERNEL_VERSION}-${KERNEL_REV}${LOCALVERSION}"
 # image package filename produced by bindeb-pkg (LOCALVERSION is the suffix)
 IMG_DEB="linux-image-${KERNEL_VERSION}${LOCALVERSION}_${DEB_VERSION}_amd64.deb"
 FRAGMENT="scripts/kernel/networkless.config"
+ENABLE_CONFIG="scripts/kernel/enable.config"
 BUILD_DIR="$(mktemp -d /tmp/coldiron-kernel.XXXXXX)"
 chmod 755 "${BUILD_DIR}"   # apt's _apt user needs read access for downloads
 trap 'rm -rf "${BUILD_DIR}"' EXIT
@@ -66,17 +67,13 @@ say "Downloading ${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV} (apt-verifi
 # clean and avoids apt's _apt user permission warnings on bind mounts)
 cd "${BUILD_DIR}"
 apt-get download "${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
-apt-get download "${LINUX_CONFIG_PKG}=${KERNEL_VERSION}-${KERNEL_REV}" -qq
 cd "${REPO_ROOT}"
 
 SRC_DEB="${LINUX_SOURCE_PKG}_${KERNEL_VERSION}-${KERNEL_REV}_all.deb"
-CFG_DEB="${LINUX_CONFIG_PKG}_${KERNEL_VERSION}-${KERNEL_REV}_amd64.deb"
 [ -f "${BUILD_DIR}/${SRC_DEB}" ] || { echo "ERROR: ${SRC_DEB} not downloaded." >&2; exit 1; }
-[ -f "${BUILD_DIR}/${CFG_DEB}" ] || { echo "ERROR: ${CFG_DEB} not downloaded." >&2; exit 1; }
 
-mkdir -p "${BUILD_DIR}/src" "${BUILD_DIR}/cfg"
+mkdir -p "${BUILD_DIR}/src"
 dpkg-deb -x "${BUILD_DIR}/${SRC_DEB}" "${BUILD_DIR}/src"
-dpkg-deb -x "${BUILD_DIR}/${CFG_DEB}" "${BUILD_DIR}/cfg"
 TARBALL="$(find "${BUILD_DIR}/src" -name 'linux-source-*.tar.xz' | head -1)"
 [ -n "${TARBALL}" ] || { echo "ERROR: kernel source tarball not found in ${SRC_DEB}." >&2; exit 1; }
 
@@ -86,64 +83,97 @@ tar -xf "${TARBALL}" -C "${BUILD_DIR}/linux" --strip-components=1
 cd "${BUILD_DIR}/linux"
 
 # ---------------------------------------------------------------- config
-# The linux-config deb ships xz-compressed per-flavour configs; the plain
-# amd64 flavour is what linux-image-amd64 uses.
-STOCK_CONFIG_XZ="$(find "${BUILD_DIR}/cfg" -name 'config.amd64_none_amd64.xz' | head -1)"
-[ -n "${STOCK_CONFIG_XZ}" ] || { echo "ERROR: amd64 config not found in ${CFG_DEB}." >&2; exit 1; }
-say "Starting from stock Debian config: ${STOCK_CONFIG_XZ}"
-xz -dc "${STOCK_CONFIG_XZ}" > .config
+# Strategy: start from `make allnoconfig` (EVERYTHING off — no hidden
+# defaults, no select chains, nothing that could pull a network driver
+# back in) and enable ONLY what the appliance needs, via two committed
+# files:
+#   scripts/kernel/enable.config      — the =y list (minimal appliance)
+#   scripts/kernel/networkless.config — the =n list (forbidden surface)
+# Both are verified below; the build fails if any invariant breaks.
+say "Starting from allnoconfig (everything off)..."
+make allnoconfig >/dev/null 2>&1
 
+apply_fragment() {
+  local file="$1" line key val
+  while IFS= read -r line; do
+    [ -n "${line}" ] || continue
+    case "${line}" in \#*) continue ;; esac
+    line="${line%%#*}"          # strip inline comment
+    [ -n "${line}" ] || continue
+    key="${line%%=*}"; val="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"; key="${key%"${key##*[![:space:]]}"}"
+    val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
+    [ -n "${key}" ] || continue
+    case "${val}" in
+      y) ./scripts/config --file .config --enable "${key}" ;;
+      n) ./scripts/config --file .config --disable "${key}" ;;
+      \"\") ./scripts/config --file .config --set-str "${key}" "" ;;
+      *) echo "ERROR: unsupported fragment line: ${line}" >&2; exit 1 ;;
+    esac
+  done < "${file}"
+}
+
+say "Applying enable list (${ENABLE_CONFIG})..."
+apply_fragment "${REPO_ROOT}/${ENABLE_CONFIG}"
 say "Applying networkless fragment (${FRAGMENT})..."
-# fragment lines: CONFIG_X=y | CONFIG_X=n | CONFIG_STR="" — applied via scripts/config
-# (trailing "# comment" on a line is stripped; comment-only lines skipped)
-while IFS= read -r line; do
-  [ -n "${line}" ] || continue
-  case "${line}" in \#*) continue ;; esac
-  line="${line%%#*}"          # strip inline comment
-  [ -n "${line}" ] || continue
-  key="${line%%=*}"
-  val="${line#*=}"
-  # trim surrounding whitespace (comment-stripping leaves trailing spaces)
-  key="${key#"${key%%[![:space:]]*}"}"; key="${key%"${key##*[![:space:]]}"}"
-  val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
-  [ -n "${key}" ] || continue   # whitespace-only comment continuation line
-  case "${val}" in
-    y) ./scripts/config --file .config --enable "${key}" ;;
-    n) ./scripts/config --file .config --disable "${key}" ;;
-    \"\") ./scripts/config --file .config --set-str "${key}" "" ;;
-    *) echo "ERROR: unsupported fragment line: ${line}" >&2; exit 1 ;;
-  esac
-done < "${REPO_ROOT}/${FRAGMENT}"
-
-# 2) with MODULES=n set, convert every remaining =m to =y (monolithic);
-#    symbols that cannot be built-in are dropped by olddefconfig.
-say "Converting remaining modules (=m) to built-in (=y) — monolithic build..."
-sed -i 's/^\(CONFIG_[A-Z0-9_]*\)=m$/\1=y/' .config
+apply_fragment "${REPO_ROOT}/${FRAGMENT}"
 
 say "Resolving config (olddefconfig)..."
-make olddefconfig >/dev/null
+make olddefconfig >/dev/null 2>&1
 
-# sanity: no =m may remain, networking must be gone
-if grep -q '^CONFIG_[A-Z0-9_]*=m' .config; then
-  echo "WARNING: some =m remain after olddefconfig:" >&2
-  grep '^CONFIG_[A-Z0-9_]*=m' .config >&2 || true
-fi
-for sym in NETDEVICES NETFILTER WIRELESS CFG80211 MAC80211 BT NFC CAN FIREWIRE THUNDERBOLT MODULES; do
+# ------------------------------------------------------------------ verify
+# 1) forbidden networking surface must be OFF
+NET_FAIL=0
+for sym in NETDEVICES NETFILTER WIRELESS CFG80211 MAC80211 BT NFC CAN FIREWIRE THUNDERBOLT MODULES PACKET IPV6 WLAN ATALK; do
   if grep -q "^CONFIG_${sym}=y" .config || grep -q "^CONFIG_${sym}=m" .config; then
     echo "ERROR: CONFIG_${sym} is still enabled — networkless kernel failed." >&2
     grep "^CONFIG_${sym}" .config >&2 || true
-    exit 1
+    NET_FAIL=1
   fi
 done
-# the loopback stack must survive
+# every =n line of the networkless fragment must be honoured
+while IFS= read -r line; do
+  [ -n "${line}" ] || continue
+  case "${line}" in \#*) continue ;; esac
+  line="${line%%#*}"; [ -n "${line}" ] || continue
+  key="${line%%=*}"; val="${line#*=}"
+  key="${key#"${key%%[![:space:]]*}"}"; key="${key%"${key##*[![:space:]]}"}"
+  val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
+  [ -n "${key}" ] || continue
+  if [ "${val}" = "n" ] && grep -q "^${key}=y" .config; then
+    echo "ERROR: fragment demanded ${key}=n but it is =y" >&2
+    NET_FAIL=1
+  fi
+done < "${REPO_ROOT}/${FRAGMENT}"
+[ "${NET_FAIL}" -eq 0 ] || exit 1
+
+# 2) the loopback stack must survive
 for sym in NET NET_LOOPBACK_DRIVER INET UNIX; do
   grep -q "^CONFIG_${sym}=y" .config || { echo "ERROR: CONFIG_${sym} missing (required)." >&2; exit 1; }
 done
-# boot-critical filesystems must be built-in (no modules exist in the image)
+
+# 3) every symbol in the enable list must actually be =y
+MISSING=0
+while IFS= read -r line; do
+  [ -n "${line}" ] || continue
+  case "${line}" in \#*) continue ;; esac
+  line="${line%%#*}"; [ -n "${line}" ] || continue
+  key="${line%%=*}"; val="${line#*=}"
+  key="${key#"${key%%[![:space:]]*}"}"; key="${key%"${key##*[![:space:]]}"}"
+  val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
+  [ -n "${key}" ] || continue
+  if [ "${val}" = "y" ] && ! grep -q "^${key}=y" .config; then
+    echo "WARNING: enable list asked for ${key}=y but it is not =y" >&2
+    MISSING=1
+  fi
+done < "${REPO_ROOT}/${ENABLE_CONFIG}"
+[ "${MISSING}" -eq 0 ] || { echo "ERROR: enable-list symbols missing (see above) — fix enable.config" >&2; exit 1; }
+
+# 4) boot-critical filesystems must be built-in (no modules exist in the image)
 for sym in ISO9660_FS SQUASHFS OVERLAY_FS EXT4_FS VFAT_FS BLK_DEV_LOOP DM_CRYPT SCSI USB USB_XHCI_HCD USB_EHCI_HCD USB_STORAGE USB_HID BLK_DEV_SD; do
   grep -q "^CONFIG_${sym}=y" .config || { echo "ERROR: boot-critical CONFIG_${sym} not built-in." >&2; exit 1; }
 done
-echo "  ✔ config sanity checks passed (networkless, monolithic, boot-critical =y)"
+echo "  ✔ config verified (networkless, monolithic, enable list honoured)"
 
 # ---- build ----------------------------------------------------------------
 say "Building kernel + image package (this takes 30-60 min on 8 cores)..."
