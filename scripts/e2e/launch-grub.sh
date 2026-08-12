@@ -20,6 +20,7 @@ rm -f "$E2E_DIR/mon.sock" "$E2E_DIR/serial.sock"
 setsid nohup qemu-system-x86_64 -enable-kvm -cpu host -m 4096 \
   -cdrom "$ISO" -boot d \
   -net none \
+  -no-reboot \
   -device qemu-xhci -device usb-storage,drive=vault \
   -drive id=vault,file="$VAULT",if=none,format=raw \
   -display none \
