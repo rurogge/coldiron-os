@@ -49,15 +49,22 @@ need_keyring() {
   fi
 }
 
+# GitHub release CDN occasionally kills connections mid-flight (seen on the
+# small .asc files); retry hard before giving up.
+dl() {
+  curl -fL --retry 8 --retry-all-errors --retry-delay 2 \
+    --connect-timeout 20 -C - "$@"
+}
+
 # ---------------------------------------------------------------- Sparrow Wallet
 need_keyring "${SPARROW_KEYRING}" "Sparrow Wallet signing key"
 
 say "Downloading ${SPARROW_TGZ}"
-curl -fL "${SPARROW_TGZ_URL}" -o "${TMP}/${SPARROW_TGZ}"
+dl "${SPARROW_TGZ_URL}" -o "${TMP}/${SPARROW_TGZ}"
 
 say "Downloading ${SPARROW_MANIFEST} (+ .asc)"
-curl -fL "${SPARROW_MANIFEST_URL}" -o "${TMP}/${SPARROW_MANIFEST}"
-curl -fL "${SPARROW_MANIFEST_ASC_URL}" -o "${TMP}/${SPARROW_MANIFEST}.asc"
+dl "${SPARROW_MANIFEST_URL}" -o "${TMP}/${SPARROW_MANIFEST}"
+dl "${SPARROW_MANIFEST_ASC_URL}" -o "${TMP}/${SPARROW_MANIFEST}.asc"
 
 say "Verifying manifest signature with ${SPARROW_KEYRING}"
 gpg --no-default-keyring --keyring "${SPARROW_KEYRING}" \
@@ -119,9 +126,9 @@ BITCOIN_DEST="config/includes.chroot/opt/bitcoin"
 need_keyring "${BITCOIN_KEYRING}" "Bitcoin Core release signing keys"
 
 say "Downloading ${BITCOIN_TGZ} (+ SHA256SUMS + SHA256SUMS.asc)"
-curl -fL "${BITCOIN_TGZ_URL}" -o "${TMP}/${BITCOIN_TGZ}"
-curl -fL "${BITCOIN_SUMS_URL}" -o "${TMP}/SHA256SUMS"
-curl -fL "${BITCOIN_SUMS_ASC_URL}" -o "${TMP}/SHA256SUMS.asc"
+dl "${BITCOIN_TGZ_URL}" -o "${TMP}/${BITCOIN_TGZ}"
+dl "${BITCOIN_SUMS_URL}" -o "${TMP}/SHA256SUMS"
+dl "${BITCOIN_SUMS_ASC_URL}" -o "${TMP}/SHA256SUMS.asc"
 
 say "Verifying SHA256SUMS.asc signature with ${BITCOIN_KEYRING}"
 # Bitcoin Core's SHA256SUMS.asc accumulates signatures from many signers
