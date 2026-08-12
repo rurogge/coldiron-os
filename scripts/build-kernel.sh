@@ -103,6 +103,9 @@ while IFS= read -r line; do
   [ -n "${line}" ] || continue
   key="${line%%=*}"
   val="${line#*=}"
+  # trim surrounding whitespace (comment-stripping leaves trailing spaces)
+  key="${key#"${key%%[![:space:]]*}"}"; key="${key%"${key##*[![:space:]]}"}"
+  val="${val#"${val%%[![:space:]]*}"}"; val="${val%"${val##*[![:space:]]}"}"
   case "${val}" in
     y) ./scripts/config --file .config --enable "${key}" ;;
     n) ./scripts/config --file .config --disable "${key}" ;;
