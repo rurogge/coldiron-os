@@ -9,12 +9,15 @@ profile /usr/local/bin/coldiron-vault {
   deny network,
 
   /usr/local/bin/coldiron-lib r,
-  /usr/sbin/cryptsetup ux,
-  /usr/bin/mount ux,
-  /usr/bin/umount ux,
-  /usr/bin/blkid ux,
-  /usr/bin/lsblk ux,
-  /usr/bin/findmnt ux,
-  /usr/bin/mkdir ux,
+  /{usr/,}sbin/cryptsetup ux,
+  /{usr/,}bin/mount ux,
+  /{usr/,}bin/umount ux,
+  /{usr/,}bin/blkid ux,
+  /{usr/,}bin/lsblk ux,
+  /{usr/,}bin/findmnt ux,
+  /{usr/,}bin/mkdir ux,
   /dev/mapper/control rw,
+  /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
+  /dev/tty rw,                   # interactive menu I/O
+  /dev/ttyS0 rw,                 # serial console (E2E / remote)
 }

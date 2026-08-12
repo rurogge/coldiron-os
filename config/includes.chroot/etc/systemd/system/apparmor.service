@@ -1,0 +1,35 @@
+[Unit]
+Description=Load AppArmor profiles
+DefaultDependencies=no
+Before=sysinit.target
+After=local-fs.target
+After=systemd-journald-audit.socket
+RequiresMountsFor=/var/cache/apparmor
+AssertPathIsReadWrite=/sys/kernel/security/apparmor/.load
+ConditionSecurity=apparmor
+Documentation=man:apparmor(7)
+Documentation=https://gitlab.com/apparmor/apparmor/wikis/home/
+
+# COLDIRON: Debian ships ConditionPathExists=!/run/live/overlay/work and
+# !/rofs/etc/apparmor.d — live-CD guards that SKIP profile loading on live
+# systems. COLDIRON is an appliance: the profiles (confining the
+# coldiron-* binaries) are the point of the security check, so we override
+# the unit WITHOUT those conditions.
+
+[Service]
+Type=oneshot
+ExecStart=/lib/apparmor/apparmor.systemd reload
+ExecReload=/lib/apparmor/apparmor.systemd reload
+
+# systemd maps 'restart' to 'stop; start' which means removing AppArmor confinement
+# from running processes (and not being able to re-apply it later).
+# Upstream systemd developers refused to implement an option that allows overriding
+# this behaviour, therefore we have to make ExecStop a no-op to error out on the
+# safe side.
+#
+# If you really want to unload all AppArmor profiles, run   aa-teardown
+ExecStop=/bin/true
+RemainAfterExit=yes
+
+[Install]
+WantedBy=sysinit.target

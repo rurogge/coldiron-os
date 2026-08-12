@@ -13,8 +13,11 @@ profile /usr/local/bin/coldiron-dice-seed {
   deny network,
 
   /usr/local/bin/coldiron-lib r,
-  /usr/bin/python3 ux,
-  /usr/bin/python3.* ux,
+  /{usr/,}bin/python3 ux,
+  /{usr/,}bin/python3.* ux,
   /usr/local/bin/coldiron-digital-backup px,
   /dev/urandom r,
+  /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
+  /dev/tty rw,                   # interactive menu I/O
+  /dev/ttyS0 rw,                 # serial console (E2E / remote)
 }

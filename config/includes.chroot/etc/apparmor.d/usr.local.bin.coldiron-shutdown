@@ -9,9 +9,12 @@ profile /usr/local/bin/coldiron-shutdown {
   deny network,
 
   /usr/local/bin/coldiron-lib r,
-  /usr/bin/umount ux,
-  /usr/sbin/cryptsetup ux,
-  /usr/bin/sync ux,
-  /usr/bin/systemctl ux,
-  /usr/sbin/poweroff ux,
+  /{usr/,}bin/umount ux,
+  /{usr/,}sbin/cryptsetup ux,
+  /{usr/,}bin/sync ux,
+  /{usr/,}bin/systemctl ux,
+  /{usr/,}sbin/poweroff ux,
+  /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
+  /dev/tty rw,                   # interactive menu I/O
+  /dev/ttyS0 rw,                 # serial console (E2E / remote)
 }

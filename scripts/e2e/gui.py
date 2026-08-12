@@ -108,16 +108,26 @@ def main():
 
     elif sub == 'opt7-guide':
         keys('7', 'ret')
-        t = wait_text('What is a seed', timeout=60)
-        check('opt7: guide renders', 'What is a seed' in t)
+        # guide is `cat`ed — the terminal scrolls, so only the LAST screen is
+        # visible; assert on its closing line, not the guide's first section
+        t = wait_text('Press Enter to return to the menu', timeout=60)
+        check('opt7: guide renders (closing line visible)', 'Press Enter to return to the menu' in t)
         keys('ret')
         check('opt7: returns to menu', menu_reprinted())
 
     elif sub == 'opt4-nobackups':
         keys('4', 'ret')
+        # restore fails fast and reprints the menu — poll OCR WHILE it runs
+        # so the one-shot error line doesn't scroll past the snapshot
+        t, hit = '', False
+        for _ in range(12):
+            t += ocr()
+            if 'No backups found' in t or 'no LUKS device' in t:
+                hit = True
+                break
+            time.sleep(0.5)
         ok = menu_reprinted()                                  # restore aborts fast -> menu back
         check('opt4: failure returns to menu (survival)', ok)
-        hit = any(x in ocr() for x in ['No backups found', 'no LUKS device'])
         check('opt4: error text shown', hit)                   # soft
 
     elif sub == 'opt3-abort':

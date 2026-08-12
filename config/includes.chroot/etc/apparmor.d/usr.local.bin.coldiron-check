@@ -9,14 +9,26 @@ profile /usr/local/bin/coldiron-check {
   deny network,
 
   /usr/local/bin/coldiron-lib r,
-  /bin/ls ux,
-  /bin/cat ux,
-  /bin/grep ux,
-  /usr/bin/gpgv ux,
-  /usr/bin/aa-status ux,
-  /usr/sbin/nft ux,
-  /usr/bin/zcat ux,
+  /{usr/,}bin/cat ux,
+  /{usr/,}bin/grep ux,
+  /{usr/,}bin/gpgv ux,
+  /{usr/,}sbin/aa-status ux,     # apparmor-utils installs aa-status in sbin
+  /{usr/,}sbin/nft ux,
+  /{usr/,}bin/zcat ux,
+  /{usr/,}bin/find ux,
+  /{usr/,}bin/wc ux,
+  /{usr/,}bin/sed ux,
+  /{usr/,}bin/basename ux,
+  /boot/ r,
   /boot/** r,
+  /sys/class/net/ r,
+  /sys/class/net/** r,
   /usr/share/coldiron/boot-key.pub r,
   /usr/share/coldiron/boot-keyring.gpg r,
+  /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
+  /dev/tty rw,                   # interactive menu I/O
+  /dev/ttyS0 rw,                 # serial console (E2E / remote)
+  /{usr/,}bin/find ux,
+  /{usr/,}bin/wc ux,
+  /{usr/,}bin/sed ux,
 }
