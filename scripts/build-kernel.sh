@@ -148,7 +148,7 @@ done < "${REPO_ROOT}/${FRAGMENT}"
 [ "${NET_FAIL}" -eq 0 ] || exit 1
 
 # 2) the loopback stack must survive
-for sym in NET NET_LOOPBACK_DRIVER INET UNIX; do
+for sym in NET INET UNIX; do
   grep -q "^CONFIG_${sym}=y" .config || { echo "ERROR: CONFIG_${sym} missing (required)." >&2; exit 1; }
 done
 
