@@ -106,7 +106,7 @@ def battery():
     t = run('ls -la /usr/share/coldiron/guide.txt && head -2 /usr/share/coldiron/guide.txt')
     check('guide.txt ships', 'guide.txt' in t and 'First-time guide' in t)
     # menu renders via pipe (q exits); vault not mounted -> no TIP
-    t = run("printf 'q\\n' | coldiron-menu", timeout=60)
+    t = run("printf 'q\n' | coldiron-menu", timeout=60)
     for s in ['Generate seed from dice', 'Create encrypted seed backup',
               'Restore encrypted seed backup', 'First-time guide', 'Exit to shell']:
         check(f'menu-pipe: {s!r}', s in t)
@@ -127,7 +127,7 @@ def battery():
     # dice-seed --test Vector B (non-zero) — trailing newline REQUIRED:
     # `while read` silently drops a final unterminated line (52 faces -> 51).
     faces = '1 1 1 1 1 1 3 5 1 5 1 1 5 1 1 5 1 1 4 3 1 4 1 1 3 3 1 3 1 1 2 4 1 2 2 3 1 6 3 5 5 1 1 4 2 3 3 3 1 2 5 5'
-    send(f"printf '{faces}' | tr ' ' '\\n' > /tmp/vecB.txt; printf '\\n' >> /tmp/vecB.txt")
+    send(f"printf '{faces}' | tr ' ' '\n' > /tmp/vecB.txt; printf '\n' >> /tmp/vecB.txt")
     recv_until([r'#'])
     t = run('coldiron-dice-seed --test /tmp/vecB.txt', timeout=60)
     check('vecB: mnemonic',
@@ -139,7 +139,7 @@ def battery():
 # ----------------------------------------------------------------------
 def vaultprep():
     t = run('lsblk -o NAME,SIZE,TYPE')
-    m = re.search(r'(sd[a-z]|vd[a-z])\\s+256M', t)
+    m = re.search(r'(sd[a-z]|vd[a-z])\s+256M', t)
     if not m:
         check('vaultprep: 256M disk found', False, t[-400:])
         return
@@ -174,16 +174,16 @@ def backup():
     send(PHRASE)
     recv_until([r'Repeat BIP39 seed phrase'])
     send(PHRASE)
-    recv_until([r'Word #\\d+:'], timeout=60)          # spot check x3
+    recv_until([r'Word #\d+:'], timeout=60)          # spot check x3
     while True:
         txt = buf.decode(errors='replace')
-        m = re.search(r'Word #(\\d+):', txt)
+        m = re.search(r'Word #(\d+):', txt)
         if not m:
             break
         idx = int(m.group(1)) - 1
         send(WORDS[idx])
         try:
-            recv_until([r'Word #\\d+:'], timeout=30)
+            recv_until([r'Word #\d+:'], timeout=30)
         except SystemExit:
             break
     recv_until([r'Enter passphrase'], timeout=60)    # age -p
@@ -203,7 +203,7 @@ def backup():
 def restore():
     send('coldiron-restore')
     recv_until([r'Available backups'], timeout=60)
-    recv_until([r'1\\)'], timeout=30)
+    recv_until([r'1\)'], timeout=30)
     send('1')
     recv_until([r'Type DECRYPT to continue'], timeout=60)
     send('DECRYPT')
@@ -219,16 +219,16 @@ def syscheck():
     """Security posture verification (the product acceptance criteria #1/#5)."""
     # networkless: only loopback
     t = run('ls /sys/class/net')
-    check('net: only lo', re.search(r'^\\s*lo\\s*$', t, re.M) is not None and
+    check('net: only lo', re.search(r'^\s*lo\s*$', t, re.M) is not None and
           not re.search(r'eth|wlan|enp|wl|wwan|usb', t, re.I), t[-300:])
     t = run('cat /proc/net/dev')
-    check('net: /proc/net/dev has only lo', re.search(r'^\\s*lo:', t, re.M) is not None and
-          len(re.findall(r'^\\s*\\S+:', t, re.M)) == 1, t[-300:])
+    check('net: /proc/net/dev has only lo', re.search(r'^\s*lo:', t, re.M) is not None and
+          len(re.findall(r'^\s*\S+:', t, re.M)) == 1, t[-300:])
     # no loadable modules
     t = run('ls /lib/modules/ 2>/dev/null | wc -l')
-    check('net: no module dirs', re.search(r'[\\r\\n]0[\\r\\n]', t) is not None, t[-200:])
+    check('net: no module dirs', re.search(r'[\r\n]0[\r\n]', t) is not None, t[-200:])
     t = run('lsmod')
-    check('net: lsmod empty', re.search(r'^\\s*$', t.splitlines()[-1] if t.splitlines() else '') is not None
+    check('net: lsmod empty', re.search(r'^\s*$', t.splitlines()[-1] if t.splitlines() else '') is not None
           or 'Module' not in t, t[-300:])
     # AppArmor enforced
     t = run('aa-status 2>/dev/null | head -8')
@@ -236,8 +236,8 @@ def syscheck():
     t = run('cat /sys/module/apparmor/parameters/enabled 2>/dev/null')
     check('apparmor: enabled', 'Y' in t, t[-200:])
     # signed boot files (Phase 1e)
-    t = run('ls /boot/coldiron.sig /boot/vmlinuz-* 2>/dev/null')
-    check('boot: signature files present', 'coldiron.sig' in t and 'vmlinuz' in t, t[-300:])
+    t = run('ls /boot/vmlinuz-* /boot/initrd.img-* 2>/dev/null')
+    check('boot: signature files present', '.sig' in t and 'vmlinuz' in t, t[-300:])
     t = run('coldiron-check --boot-verify 2>&1')
     check('boot: verification command passes', 'OK' in t and 'FAIL' not in t, t[-400:])
     # the built-in integrity script agrees
@@ -255,7 +255,7 @@ def mnt():
 
 def agecount():
     t = run('ls /mnt/vault/encrypted-seed-backups/*.age 2>/dev/null | wc -l')
-    m = re.search(r'[\\r\\n]+(\\d+)[\\r\\n]+', t)     # digit-only line (pty \\r\\n endings)
+    m = re.search(r'[\r\n]+(\d+)[\r\n]+', t)     # digit-only line (pty \r\n endings)
     n = m.group(1) if m else '?'
     check('backups on disk: ' + n, m is not None and int(n) >= 1, t[-200:])
 

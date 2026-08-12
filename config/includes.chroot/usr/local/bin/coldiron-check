@@ -42,11 +42,11 @@ else
   bad "network interfaces present: ${NETIFS}"
 fi
 
-MODS="$(ls /lib/modules 2>/dev/null | wc -l)"
-if [ "${MODS}" = "0" ] || [ ! -d /lib/modules ]; then
-  ok "no kernel module directories (/lib/modules empty or absent)"
+MODS="$(find /lib/modules -name '*.ko' 2>/dev/null | wc -l)"
+if [ "${MODS}" = "0" ]; then
+  ok "no loadable kernel modules (0 .ko files — monolithic)"
 else
-  bad "/lib/modules contains ${MODS} kernel(s)"
+  bad "${MODS} loadable kernel module(s) present"
 fi
 
 # ------------------------------------------------------------------ confinement
@@ -81,15 +81,9 @@ BOOT_KEYRING=/usr/share/coldiron/boot-keyring.gpg
 boot_verify() {
   local okc=0 f
   [ -f "${BOOT_KEYRING}" ] || { echo "  ✘ FAIL: boot keyring missing (${BOOT_KEYRING})"; return 1; }
-  for f in /boot/vmlinuz-*; do
+  for f in /boot/vmlinuz-* /boot/initrd.img-*; do
     [ -f "${f}" ] || continue
-    if [ ! -f "${f}.sig" ]; then echo "  ✘ FAIL: no signature for ${f}"; return 1; fi
-    gpgv --quiet --keyring "${BOOT_KEYRING}" "${f}.sig" "${f}" 2>/dev/null \
-      || { echo "  ✘ FAIL: signature invalid for ${f}"; return 1; }
-    okc=$((okc+1))
-  done
-  for f in /boot/initrd.img-*; do
-    [ -f "${f}" ] || continue
+    case "${f}" in *.sig) continue ;; esac   # the .sig siblings match the glob
     if [ ! -f "${f}.sig" ]; then echo "  ✘ FAIL: no signature for ${f}"; return 1; fi
     gpgv --quiet --keyring "${BOOT_KEYRING}" "${f}.sig" "${f}" 2>/dev/null \
       || { echo "  ✘ FAIL: signature invalid for ${f}"; return 1; }

@@ -39,7 +39,7 @@ fi
 rm -f "$E2E_DIR/mon.sock" "$E2E_DIR/serial.sock"
 setsid nohup qemu-system-x86_64 -enable-kvm -cpu host -m 4096 \
   -kernel "$E2E_DIR/vmlinuz" -initrd "$E2E_DIR/initrd" \
-  -append 'boot=live config toram noswap noresume console=ttyS0 loglevel=6 ipv6.disable=1' \
+  -append 'boot=live config toram noswap noresume console=ttyS0 loglevel=6 ipv6.disable=1 apparmor=1 security=apparmor' \
   -cdrom "$ISO" -net none \
   -device qemu-xhci -device usb-storage,drive=vault \
   -drive id=vault,file="$VAULT",if=none,format=raw \
