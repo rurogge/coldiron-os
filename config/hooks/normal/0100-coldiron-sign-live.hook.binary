@@ -37,6 +37,7 @@ echo "==> COLDIRON: signed ${found} live boot files for GRUB verification"
 # ([^ ;]+ — grub's `if cmd args; then` leaves a trailing ';' on the path)
 for f in $(grep -oE '/live/(vmlinuz|initrd\.img)[^ ;]+' boot/grub/grub.cfg | sort -u); do
   base="$(basename "${f}")"
+  case "${base}" in *.sig) continue ;; esac   # .sig files are the outputs, not inputs
   if [ ! -f "live/${base}" ]; then
     echo "ERROR: grub.cfg references ${f} but the file is missing" >&2
     exit 1
