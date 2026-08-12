@@ -59,7 +59,7 @@ say "Installing kernel build dependencies..."
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
   build-essential bc bison flex libssl-dev libelf-dev dwarves \
-  rsync cpio kmod dpkg-dev file zstd
+  rsync cpio kmod dpkg-dev file zstd debhelper
 
 # ---------------------------------------------------------------- source (verified by apt)
 say "Downloading ${LINUX_SOURCE_PKG}=${KERNEL_VERSION}-${KERNEL_REV} (apt-verified)..."
