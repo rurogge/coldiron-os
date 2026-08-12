@@ -52,6 +52,16 @@ chmod 0755 /root/.xinitrc
 cat > /root/.config/openbox/autostart <<'EOF'
 # COLDIRON desktop: launcher menu in a terminal
 xterm -T "COLDIRON OS" -e /usr/local/bin/coldiron-menu &
+# screen blank + lock after 5 min idle (shoulder-surf protection)
+xscreensaver -no-splash &
+EOF
+
+# xscreensaver: blank + lock after 5 minutes idle
+cat > /root/.xscreensaver <<'EOF'
+timeout:	5
+lock:		True
+lockTimeout:	0
+fade:		True
 EOF
 
 cat >> /root/.bash_profile <<'EOF'

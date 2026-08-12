@@ -34,6 +34,7 @@ openbox
 xterm
 menu
 dbus-x11
+xscreensaver
 
 # ---- Sparrow runtime deps (jpackage bundle needs GTK3) ----
 libgtk-3-0
