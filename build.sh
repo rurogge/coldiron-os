@@ -39,7 +39,7 @@ fi
 # The base image is pinned to a snapshot.debian.org date so the package
 # set is frozen (reproducibility). Bump SNAPSHOT_DATE together with
 # source-date-epoch when a release is prepared.
-SNAPSHOT_DATE="${SNAPSHOT_DATE:-20260803T000000Z}"
+SNAPSHOT_DATE="${SNAPSHOT_DATE:-20260812T000000Z}"
 SNAPSHOT_DEBIAN="http://snapshot.debian.org/archive/debian/${SNAPSHOT_DATE}/"
 SNAPSHOT_SECURITY="http://snapshot.debian.org/archive/debian-security/${SNAPSHOT_DATE}/"
 
