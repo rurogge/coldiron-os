@@ -30,10 +30,14 @@ if [ ! -f "$E2E_DIR/vmlinuz" ] || [ ! -f "$E2E_DIR/initrd" ]; then
   mount -o loop,ro "$ISO" /mnt/coldiron-iso || { echo "ERROR: cannot mount ISO"; exit 1; }
   VML="$(ls /mnt/coldiron-iso/live/vmlinuz-* 2>/dev/null | grep -v '\.sig$' | head -1)"
   INI="$(ls /mnt/coldiron-iso/live/initrd.img-* 2>/dev/null | grep -v '\.sig$' | head -1)"
-  umount /mnt/coldiron-iso
-  [ -n "$VML" ] && [ -n "$INI" ] || { echo "ERROR: kernel/initrd not found on ISO"; exit 1; }
+  [ -n "$VML" ] && [ -n "$INI" ] || { echo "ERROR: kernel/initrd not found on ISO"; umount /mnt/coldiron-iso 2>/dev/null; exit 1; }
+  # copy BEFORE unmounting — $VML/$INI are paths under the mountpoint and
+  # become unreachable the moment the ISO is unmounted (umount-then-cp
+  # silently failed whenever the umount succeeded; it only ever worked
+  # by accident when the umount hit EBUSY)
   cp "$VML" "$E2E_DIR/vmlinuz"
   cp "$INI" "$E2E_DIR/initrd"
+  umount /mnt/coldiron-iso
 fi
 
 rm -f "$E2E_DIR/mon.sock" "$E2E_DIR/serial.sock"
