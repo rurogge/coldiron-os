@@ -97,7 +97,9 @@ for s in coldiron-dice-seed coldiron-vault coldiron-digital-backup coldiron-rest
   chmod +x "$HARNESS/fakebin/$s"
 done
 printf '#!/bin/bash\nexit 0\n' > "$HARNESS/fakebin/mountpoint"; chmod +x "$HARNESS/fakebin/mountpoint"
-printf '1\n2\n3\n4\n5\n6\n7\n8\nx\nq\n' | PATH="$HARNESS/fakebin:$PATH" COLDIRON_LIB="$BIN/coldiron-lib" \
+# Option 8 pauses for Enter after the check (read -rsp) — feed that Enter,
+# exactly as a real user would, before the invalid choice.
+printf '1\n2\n3\n4\n5\n6\n7\n8\n\nx\nq\n' | PATH="$HARNESS/fakebin:$PATH" COLDIRON_LIB="$BIN/coldiron-lib" \
   "$BIN/coldiron-menu" > "$HARNESS/menu.out" 2>&1; RC=$?
 [ "$RC" -eq 0 ] && ok "menu: exit 0" || bad "menu: rc=$RC"
 BANNERS=$(grep -c "COLDIRON OS — your offline Bitcoin vault" "$HARNESS/menu.out")
