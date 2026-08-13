@@ -11,6 +11,7 @@ profile /usr/local/bin/coldiron-shutdown {
   /{usr/,}bin/bash mr,   # interpreter mmap under px transitions
 
   /usr/local/bin/coldiron-lib r,
+  /proc/sys/vm/drop_caches w,   # shutdown drops caches before poweroff
   /{usr/,}bin/umount ux,
   /{usr/,}sbin/cryptsetup ux,
   /{usr/,}bin/sync ux,
