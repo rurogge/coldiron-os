@@ -41,7 +41,18 @@ export SOURCE_DATE_EPOCH=1786492800
 # packed with it, which makes the initramfs cpio headers AND the squashfs
 # metadata differ between builders. Force every non-root-owned file back to
 # root:root — a no-op on builders that are already clean.
+#
+# Three passes are needed:
+#  1. regular files/dirs owned by uid 1001 (chown dereferences symlinks, so
+#     targets are handled here);
+#  2. symlinks themselves via -type l + chown -h (find -uid matches on the
+#     *target* owner, so symlinks whose target is already root would be
+#     skipped — matching the link type covers them all);
+#  3. chown(2) clears S_ISUID/S_ISGID even for root, so restore the setuid
+#     bit on /usr/bin/mount (package default 4755).
 find / -xdev -uid 1001 -exec chown 0:0 {} + 2>/dev/null || true
+find / -xdev -type l -exec chown -h 0:0 {} + 2>/dev/null || true
+chmod u+s /usr/bin/mount 2>/dev/null || true
 
 UPDATE_INITRAMFS=/usr/sbin/update-initramfs.orig.initramfs-tools
 if [ ! -x "${UPDATE_INITRAMFS}" ]; then
