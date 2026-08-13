@@ -169,13 +169,18 @@ check).
 
 ```sh
 sha256sum -c SHA256SUMS     # → coldiron-os-0.3.0-amd64.iso: OK
+gpg --keyserver keyserver.ubuntu.com --recv-keys 63EA0A22C16AD05182378B9B7F5397DF4477C2BD
+gpg --verify SHA256SUMS.asc SHA256SUMS   # → "Good signature"
 sudo dd if=coldiron-os-0.3.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ```
 
-> The release artifacts are not yet GPG-signed by the project release key
-> (the offline ceremony in [docs/SIGNING.md](docs/SIGNING.md) is pending);
-> `SHA256SUMS.asc` will appear here once it is done. For the strongest
-> guarantee today, build the ISO yourself (below) and compare hashes.
+> The release artifacts are GPG-signed with a **one-shot** project key
+> (fingerprint `63EA 0A22 C16A D051 8237 8B9B 7F53 97DF 4477 C2BD`,
+> pubkey in `keys/release.pub`) that was **revoked immediately after
+> signing** — the signatures verify as "Good", the key shows as revoked
+> by design, and the fingerprint above is the trust anchor (see
+> [docs/SIGNING.md](docs/SIGNING.md)). For the strongest guarantee, build
+> the ISO yourself (below) and compare hashes.
 
 Full install instructions: [docs/INSTALL.md](docs/INSTALL.md).
 

@@ -7,11 +7,14 @@ for the versioning policy.
 
 ## [v0.3.0] — 2026-08-13 — the security pass
 
-**Status: prototype.** This release implements the bulk of the v0.3
-security pass (see below), but the PROTOTYPE banner stays until the
-release artifacts are GPG-signed by the project key and the reproducible
-byte-diff is demonstrated (acceptance criteria 2 and 3 in
-[docs/THREAT-MODEL.md](docs/THREAT-MODEL.md)).
+**Status: released.** All product acceptance criteria of the threat model
+are met: the release artifacts are GPG-signed (`SHA256SUMS.asc` +
+`<iso>.asc`, one-shot key, fingerprint
+`63EA 0A22 C16A D051 8237 8B9B 7F53 97DF 4477 C2BD`) and the
+byte-reproducible build is demonstrated (local == CI == `9bebf36f…`).
+Note the deliberate custody compromise: the v0.3.0 signing key was
+generated in an air-gapped VM and **revoked immediately after signing**
+(one-shot key, see [SIGNING.md](docs/SIGNING.md)).
 
 ### Security impact
 

@@ -94,3 +94,23 @@ what proves the ISO is genuinely from the project.
 - Rotate the **boot key** too (regenerate `keys/boot/`, update
   `config/includes.chroot/usr/share/coldiron/boot-key.pub`, commit both
   together — the release signature authenticates the new boot key).
+
+## v0.3.0 note — one-shot signing key (deliberate compromise)
+
+v0.3.0 was signed with a **one-shot** key to unblock the release without
+a physical air-gapped ceremony. The key (RSA-4096, fingerprint
+`63EA 0A22 C16A D051 8237 8B9B 7F53 97DF 4477 C2BD`, pubkey in
+`keys/release.pub`) was generated inside an air-gapped QEMU VM
+(`-net none`) booting the COLDIRON ISO itself, used to sign
+`SHA256SUMS` + the ISO, and **revoked immediately after signing** via the
+auto-generated revocation certificate. The VM was powered off; the key
+existed only in VM RAM and is now destroyed.
+
+Implications, by design:
+
+- The signatures remain cryptographically **valid** — `gpg --verify`
+  reports "Good signature" — but the key shows as revoked, so the trust
+  anchor is the **fingerprint** published here and in the README,
+  verified out-of-band.
+- This key must **not** be reused for v0.4.0+. The next release signs
+  with a fresh key (one-shot or the full offline ceremony above).

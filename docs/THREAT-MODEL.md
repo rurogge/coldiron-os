@@ -1,8 +1,9 @@
 # COLDIRON OS — Threat Model
 
-> Applies to v0.3.0 (prototype). Read this before trusting the image with
-> anything valuable. The product acceptance criteria at the bottom define
-> what must be true before the PROTOTYPE banner comes off.
+> Applies to v0.3.0 (released — see the acceptance criteria at the
+> bottom; v0.3.0's release key is a one-shot key revoked after signing,
+> see [SIGNING.md](SIGNING.md)). Read this before trusting the image with
+> anything valuable.
 
 ## What we are protecting
 
@@ -117,7 +118,7 @@ v0.3.0:
 | # | Criterion | Status (v0.3.0) |
 |---|---|---|
 | 1 | **Networkless kernel**: compiled with no network device drivers and no loadable modules (loopback-only stack kept for userspace). Verified at boot: no network-capable device is ever probed, `lsmod` shows no net modules, loading one is impossible. | ✅ **DONE** — `6.12.101-coldiron`, `CONFIG_NETDEVICES=n` + `CONFIG_MODULES=n`; asserted by `coldiron-check` (menu 8) and the E2E |
-| 2 | **Verified boot path**: release artifacts GPG-signed by the project signing key (`SHA256SUMS.asc`), and the ISO's boot files integrity-checked by GRUB against the embedded key before execution. | ⚠️ **PARTIAL** — GRUB verification ✅ done and E2E-proven; artifact signing ❌ pending (offline ceremony, [SIGNING.md](SIGNING.md)) |
+| 2 | **Verified boot path**: release artifacts GPG-signed by the project signing key (`SHA256SUMS.asc`), and the ISO's boot files integrity-checked by GRUB against the embedded key before execution. | ✅ **DONE** — GRUB verification ✅ E2E-proven; `SHA256SUMS.asc` + `<iso>.asc` published on the v0.3.0 release, signed with a **one-shot** "COLDIRON OS Release" key (RSA-4096, fingerprint `63EA 0A22 C16A D051 8237 8B9B 7F53 97DF 4477 C2BD`, pubkey in `keys/release.pub`). The key was generated in an air-gapped VM, used once and **revoked immediately after signing** (deliberate custody compromise — see [SIGNING.md](SIGNING.md)); the signatures remain cryptographically valid and the fingerprint is the out-of-band trust anchor. |
 | 3 | **Reproducible build**: two independent builds (local + CI) produce a byte-identical ISO; base image pinned to a `snapshot.debian.org` date with `SOURCE_DATE_EPOCH` set. | ✅ **DONE** — local build and the GitHub Actions runner both produce `9bebf36feaed981795051c8154040e5c35b1629bf8a36420ac2e57fdf3175733` (byte-identical, verified with `cmp`); see [BUILD.md](BUILD.md#reproducible-builds) |
 | 4 | **Full GPG verification of every staged binary**: Sparrow and Bitcoin Core `SHA256SUMS.asc` verified against keyrings the user imports out-of-band; the build refuses to auto-download keys. | ✅ **DONE** — `keys/sparrow.gpg` + `keys/bitcoin.gpg` |
 | 5 | **Enforced confinement**: AppArmor profiles loaded and enforced at boot; default-deny packet policy active where the kernel supports packet filtering. | ✅ **DONE** — enforced at boot, asserted by `coldiron-check` (networkless kernel has no packet filtering at all) |
