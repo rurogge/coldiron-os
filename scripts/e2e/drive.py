@@ -221,7 +221,8 @@ def syscheck():
     t = run('ls /sys/class/net')
     body = t.split('~# ', 1)[-1] if '~# ' in t else t          # drop the shell prompt
     ifaces = [l.strip() for l in body.splitlines()
-              if re.match(r'^\s*\S+\s*$', l) and l.strip() != '']
+              if re.match(r'^\s*\S+\s*$', l) and l.strip() != ''
+              and 'root@' not in l and '@' not in l]
     check('net: only lo', ifaces == ['lo'], t[-300:])
     t = run('cat /proc/net/dev')
     check('net: /proc/net/dev has only lo', re.search(r'^\s*lo:', t, re.M) is not None and
