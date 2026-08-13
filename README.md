@@ -2,12 +2,15 @@
 
 **Offline by design. Sovereign by default.**
 
-> ⚠️ **STATUS: PROTOTYPE (v0.2.0 released).** Do NOT trust this ISO with a
-> valuable seed yet. Networking is extremely difficult to use by accident
-> (driver blacklist + no network services + restrictive sysctls), but the
-> kernel still contains its networking subsystem — a genuinely networkless
-> kernel is future work. Until the security pass (see `docs/`) is complete,
-> treat this as a test build.
+> ⚠️ **STATUS: PROTOTYPE (v0.3.0 released).** Do NOT trust this ISO with a
+> valuable seed yet. v0.3.0 is the security pass: the kernel now has **no
+> network drivers and no loadable modules at all**, the boot chain is
+> **signature-verified by GRUB**, and **AppArmor is enforced** on the
+> appliance scripts. The banner stays until the remaining acceptance
+> criteria are met: release artifacts GPG-signed by the project key
+> (offline ceremony, see [docs/SIGNING.md](docs/SIGNING.md)) and a
+> demonstrated reproducible byte-diff build. Until then, treat this as a
+> test build.
 
 ## Table of Contents
 
@@ -40,9 +43,9 @@ single point of failure (lost, dead battery, broken screen, obsolete).
 
 **COLDIRON OS takes a different approach: make the *entire computer* the
 cold wallet.** A hardened Linux distribution that boots from a USB stick
-you control, runs entirely from RAM, **has no usable networking by
-design**, and ships with the tools you actually need for air-gapped
-Bitcoin signing:
+you control, runs entirely from RAM, **is built without any networking
+capability by design**, and ships with the tools you actually need for
+air-gapped Bitcoin signing:
 
 - **Sparrow Wallet** — the most widely used open-source desktop wallet,
   preinstalled and GPG-verified,
@@ -67,12 +70,19 @@ live-build image that:
 
 - runs **entirely from RAM** (`toram`) — nothing is ever written back to
   the boot USB, power-off removes all state,
-- has **no usable networking** — drivers blacklisted, no network
-  services, IPv6 off, restrictive sysctls,
+- **cannot network**: the kernel is compiled from source with **no
+  network device drivers and no loadable modules** (`CONFIG_NETDEVICES=n`,
+  `CONFIG_MODULES=n`; see `scripts/kernel/networkless.config`), plus
+  driver blacklist and restrictive sysctls as defense in depth,
+- **verifies its own boot files**: GRUB checks the kernel/initramfs PGP
+  signatures (`check_signatures=enforce`) before executing them,
 - **autologins to a minimal desktop** with a console launcher menu,
+- **confines the appliance scripts** with enforced AppArmor profiles and
+  ships an in-image **security check** (menu option 8) that proves the
+  posture at runtime,
 - ships **verified binaries only** (Sparrow manifest GPG-checked against
-  *your* keyring; Bitcoin Core pinned sha256 + official SHA256SUMS
-  cross-check),
+  *your* keyring; Bitcoin Core `SHA256SUMS.asc` GPG-checked against
+  *your* keyring, plus pinned sha256),
 - pairs with a **LUKS2-encrypted vault USB** for offline PSBT signing
   and optional encrypted seed backups.
 
@@ -115,9 +125,13 @@ Sparrow Wallet ships preinstalled for offline PSBT signing:
 ```
 USB #1 — COLDIRON OS (bootable, read-only)
 ├── Debian 13 live image, boots toram (runs entirely from RAM)
-├── No networking: drivers blacklisted, no network services, ipv6 off
+├── Kernel 6.12.101-coldiron — networkless & monolithic:
+│   no network device drivers, no loadable modules (CONFIG_MODULES=n)
+├── GRUB verified boot — pgp verify_detached + check_signatures=enforce
+│   over kernel/initramfs (signed at build time, keys/boot/)
 ├── No persistent logs, no swap, no core dumps, kexec disabled
-├── Minimal X11/Openbox desktop + console launcher
+├── AppArmor enforced on all coldiron-* appliance scripts
+├── Minimal X11/Openbox desktop + console launcher (options 1–8 + q)
 ├── Sparrow Wallet 2.5.3 (signed manifest + sha256 verified, see scripts/fetch-binaries.sh)
 ├── Bitcoin Core CLI tools (bitcoin-cli / bitcoin-tx / bitcoin-util)
 ├── QR tools (qrencode / zbar-tools), age, paperkey, wipe
@@ -148,13 +162,20 @@ anything digitally.
 ## Download
 
 Prebuilt ISO: **[Releases](https://github.com/rurogge/coldiron-os/releases)**
-→ `coldiron-os-0.2.0-amd64.iso` + `SHA256SUMS` (v0.2.0 adds the dice-seed
-wallet and the beginner guidance layer).
+→ `coldiron-os-0.3.0-amd64.iso` + `SHA256SUMS` (v0.3.0 is the security
+pass: networkless monolithic kernel, GRUB-verified boot chain, enforced
+AppArmor, full GPG verification of every staged binary, in-image security
+check).
 
 ```sh
-sha256sum -c SHA256SUMS     # → coldiron-os-0.2.0-amd64.iso: OK
-sudo dd if=coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
+sha256sum -c SHA256SUMS     # → coldiron-os-0.3.0-amd64.iso: OK
+sudo dd if=coldiron-os-0.3.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ```
+
+> The release artifacts are not yet GPG-signed by the project release key
+> (the offline ceremony in [docs/SIGNING.md](docs/SIGNING.md) is pending);
+> `SHA256SUMS.asc` will appear here once it is done. For the strongest
+> guarantee today, build the ISO yourself (below) and compare hashes.
 
 Full install instructions: [docs/INSTALL.md](docs/INSTALL.md).
 
@@ -173,6 +194,9 @@ gpg --export D4D0D3202FC06849A257B38DE94618334C674B40 \
 gpg --no-default-keyring --keyring keys/sparrow.gpg --fingerprint   # confirm it
 ```
 
+The same applies to Bitcoin Core: import the signers of
+`SHA256SUMS.asc` into `keys/bitcoin.gpg` (see [keys/README.md](keys/README.md)).
+
 ### 2. Build
 
 ```sh
@@ -181,7 +205,10 @@ sudo ./build-root.sh            # on Debian hosts (or any host, simpler)
 sudo ./build-docker.sh
 ```
 
-~15–60 min, needs ~10 GB disk, 4 GB+ RAM. Output: `dist/coldiron-os-0.2.0-amd64.iso`
+The first build also compiles the **networkless kernel** from Debian
+source (~30–60 min, cached afterwards; see [docs/BUILD.md](docs/BUILD.md)).
+~15–60 min for the rest, needs ~10 GB disk, 4 GB+ RAM. Output:
+`dist/coldiron-os-0.3.0-amd64.iso`
 
 ### 3. Test in QEMU
 
@@ -190,12 +217,13 @@ sudo ./build-docker.sh
 ```
 
 The test VM gets a scratch 256 MB USB disk for the vault and **no network
-device at all** — matching the appliance's threat model.
+device at all** — matching the appliance's threat model. The full
+19-step / 3-boot E2E suite lives in `scripts/e2e/`.
 
 ### 4. Write to USB
 
 ```sh
-dd if=dist/coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
+dd if=dist/coldiron-os-0.3.0-amd64.iso of=/dev/sdX bs=4M status=progress
 ```
 
 ## In-image usage
@@ -209,6 +237,7 @@ dd if=dist/coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
 | `coldiron-restore` | Decrypt a seed backup to the screen |
 | `coldiron-shutdown` | Unmount, close vault, drop caches, power off |
 | `coldiron-guide` | First-time guide (plain language) |
+| `coldiron-check` | Security check: networkless kernel, no modules/interfaces, AppArmor, boot signatures (menu option 8) |
 
 > 🔑 **Default credentials:** the console **autologins as root** on tty1
 > (the appliance is offline and RAM-only — physical possession of the USB
@@ -217,49 +246,88 @@ dd if=dist/coldiron-os-0.2.0-amd64.iso of=/dev/sdX bs=4M status=progress
 
 ## Documentation
 
+- [CHANGELOG.md](CHANGELOG.md) — what changed in each release
 - [docs/INSTALL.md](docs/INSTALL.md) — download, verify, write to USB, first boot, vault setup
 - [docs/USAGE.md](docs/USAGE.md) — the launcher menu, dice-wallet, PSBT signing workflow, seed backup/restore
 - [docs/dice-seed.md](docs/dice-seed.md) — dice entropy math, security notes, proven test vectors
-- [docs/BUILD.md](docs/BUILD.md) — build from source, verification model, troubleshooting
-- [docs/TESTING.md](docs/TESTING.md) — QEMU smoke test + serial-console harness
-- [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) — what this protects, against whom, honest limitations
+- [docs/BUILD.md](docs/BUILD.md) — build from source (incl. networkless kernel), verification model, troubleshooting
+- [docs/TESTING.md](docs/TESTING.md) — host test suite + QEMU E2E harness and results
+- [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) — what this protects, against whom, honest limitations, acceptance criteria
+- [docs/VERSIONING.md](docs/VERSIONING.md) — version scheme, release process, PROTOTYPE→PRODUCT rule
+- [docs/SIGNING.md](docs/SIGNING.md) — release signing ceremony (offline key, never networked)
+- [docs/REVIEW.md](docs/REVIEW.md) — independent security review guide
+- [docs/DR.md](docs/DR.md) — disaster recovery runbook
+- [docs/HARDWARE-WALLETS.md](docs/HARDWARE-WALLETS.md) — hardware wallets & smartcards
 
 ## Repository layout
 
 ```
-build.sh                                  one-command ISO builder (run as root)
+build.sh / build-root.sh / build-docker.sh   one-command ISO builders (run as root)
+source-date-epoch                            pinned build timestamp (reproducible builds)
 scripts/
-├── fetch-binaries.sh                     download + GPG-verify Sparrow + Bitcoin Core CLI (refuses without your keyring)
-└── qemu-test.sh                          smoke-test the ISO in QEMU (headless)
-keys/                                     YOUR trusted signing keyrings (never auto-downloaded, gitignored)
+├── fetch-binaries.sh        download + GPG-verify Sparrow + Bitcoin Core CLI (refuses without your keyrings)
+├── build-kernel.sh          build the networkless monolithic kernel from Debian source (scripts/kernel/*.config)
+├── qemu-test.sh             smoke-test the ISO in QEMU (headless)
+├── host-tests.sh            host-side regression suite (dice-seed vectors, menu harness, guide render)
+├── soak-test.sh             long-duration stability soak in QEMU
+├── sign-release.sh          offline release signing (SHA256SUMS.asc, ISO .asc — needs the release key)
+└── e2e/                     full QEMU E2E suite (19 steps, 3 boots incl. the real GRUB path)
+keys/                        YOUR trusted signing keyrings (never auto-downloaded, gitignored)
+└── boot/                    GRUB boot-signing key for the kernel/initramfs (committed by design)
 config/
 ├── package-lists/coldiron.list.chroot    packages installed into the image
 ├── hooks/normal/0100-coldiron-setup.chroot
+├── hooks/normal/9600-sign-boot.chroot    signs kernel + initramfs with keys/boot at build time
 └── includes.chroot/                      files baked into the rootfs
-    ├── etc/modprobe.d/blacklist-coldiron.conf   network/peripheral driver blacklist
+    ├── etc/modprobe.d/blacklist-coldiron.conf   network/peripheral driver blacklist (defense in depth)
     ├── etc/sysctl.d/99-coldiron.conf            kernel hardening sysctls
-    └── usr/local/bin/                     coldiron-vault, coldiron-digital-backup,
-                                           coldiron-restore, coldiron-shutdown, coldiron-menu
+    ├── etc/apparmor.d/                          enforced confinement profiles for coldiron-*
+    └── usr/local/bin/                           coldiron-menu, coldiron-vault, coldiron-dice-seed,
+                                                 coldiron-digital-backup, coldiron-restore,
+                                                 coldiron-shutdown, coldiron-guide, coldiron-check
 dist/                                     built ISO lands here (gitignored)
 ```
 
 ## Hardening notes (current — honest limitations)
 
-- `toram` + `noswap` + `noresume` + volatile logs → no persistent OS state.
-- Driver blacklist (wired/wifi/USB-ethernet/Bluetooth/FireWire/Thunderbolt)
-  plus loopback-only `/etc/network/interfaces` and no network services.
-  This makes networking **very hard to enable accidentally** — it is not
-  the same as a kernel without networking. That remains future work.
-- Restrictive sysctls: `kptr_restrict=2`, `dmesg_restrict=1`, core dumps
-  disabled, `kexec_load_disabled=1`, BPF hardened, IPv6 off.
-- AppArmor and nftables infrastructure present.
-- The build verifies Sparrow's release manifest against **your** keyring and
-  cross-checks the archive sha256. Bitcoin Core CLI tools (bitcoin-cli /
-  bitcoin-tx / bitcoin-util / bitcoind) are staged from the official
-  bitcoincore.org tarball with the sha256 **pinned inside**
-  scripts/fetch-binaries.sh (plus a cross-check against the official
-  SHA256SUMS over HTTPS). Full SHA256SUMS.asc GPG verification with your own
-  keyring is planned for a future release.
+**Implemented and verified (v0.3.0):**
+
+- **Networkless kernel** — the kernel is compiled from Debian source with
+  no network device drivers (`CONFIG_NETDEVICES=n`, wireless/BT/NFC/CAN
+  off) and **no loadable modules** (`CONFIG_MODULES=n`). There is no
+  driver that could talk to hardware and no module subsystem to insert
+  one; the old "root loads a driver" attack is closed. Verified at boot
+  by `coldiron-check`.
+- **Verified boot chain** — GRUB loads the `pgp` module *before*
+  `check_signatures=enforce`, verifies kernel + initramfs against the
+  committed boot key, then executes. Tampering with the boot files
+  prevents boot (fails closed). Residual: UEFI Secure Boot enrollment is
+  future work; verify the downloaded ISO's sha256 before writing it.
+- **AppArmor enforced** — profiles for the appliance scripts load and
+  enforce at boot; `coldiron-check` asserts ≥ 4 profiles enforcing.
+- **Full binary verification** — Sparrow manifest and Bitcoin Core
+  `SHA256SUMS.asc` are GPG-verified against keyrings you import
+  out-of-band; pinned sha256 cross-checks remain as a second layer.
+- `toram` + `noswap` + `noresume` + volatile logs → no persistent OS
+  state; restrictive sysctls (`kptr_restrict=2`, `dmesg_restrict=1`,
+  core dumps off, `kexec_load_disabled=1`, BPF hardened); IPv6 compiled
+  out of the kernel.
+
+**Still prototype (what blocks the PRODUCT banner):**
+
+- **Release artifact signing** — the project release key does not exist
+  yet; `SHA256SUMS.asc` / ISO signatures are produced by an offline
+  ceremony ([docs/SIGNING.md](docs/SIGNING.md)) and will be published
+  with the release. Until then, a tampered ISO can only be caught by
+  comparing sha256 with your own build.
+- **Reproducible build proof** — the mechanism is in place
+  (`SOURCE_DATE_EPOCH`, `snapshot.debian.org` pinning, independent CI
+  builder in `.github/workflows/reproducible.yml`), but a published
+  byte-diff between a local and a CI build is not yet demonstrated.
+- **UEFI Secure Boot** enrollment, physical-adversary protections
+  (tamper-evident hardware, anti-glitch), and hardware-wallet end-to-end
+  testing on real devices remain future work (see
+  [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md)).
 
 ## License
 

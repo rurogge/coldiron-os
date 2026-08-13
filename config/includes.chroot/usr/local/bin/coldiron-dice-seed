@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # coldiron-dice-seed — generate a BIP39 seed from physical dice rolls.
-# COLDIRON OS v0.2.0 · menu entry 1.
+# COLDIRON OS v0.3.0 · menu entry 1.
 #
 # Flow: warning + consent → word count → pair rolls (rejection-sampled,
 # bias-free) → BIP39 mnemonic (python3-mnemonic) → paper transcription →

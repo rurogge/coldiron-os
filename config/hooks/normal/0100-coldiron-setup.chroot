@@ -37,7 +37,7 @@ ExecStart=
 ExecStart=-/sbin/agetty --autologin root --noclear %I $TERM
 EOF
 
-# Root password: documented default for v0.1 (offline appliance, no remote
+# Root password: documented default (offline appliance, no remote
 # attack surface; allows login on other ttys / serial for troubleshooting).
 echo 'root:coldiron' | chpasswd
 

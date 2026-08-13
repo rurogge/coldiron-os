@@ -15,6 +15,7 @@ auto-starts in a terminal on the desktop:
    5) Launch Sparrow Wallet          → see addresses, send and receive
    6) Shut down securely             → lock the vault and power off
    7) First-time guide               → plain-language guide (first-time)
+   8) System security check          → verify the appliance is intact
    q) Exit to shell                  → leave the menu (advanced users)
 ══════════════════════════════════════════════════════════════════
 ```
@@ -125,6 +126,23 @@ is mounted read-write while open.
 Renders a plain-language guide (what a seed / vault / address are, the
 first-time steps, the safety rules) from `/usr/share/coldiron/guide.txt`.
 
+## 8 — System security check
+
+Runs `coldiron-check`, the in-image posture check that proves the
+appliance matches its security model:
+
+- kernel has **no network device drivers** and **no loadable modules**
+  (`CONFIG_NETDEVICES=n`, `CONFIG_MODULES=n`),
+- only the loopback interface exists,
+- **AppArmor is enabled and enforcing** the appliance profiles,
+- packet policy is default-deny (or no packet-filtering subsystem at
+  all, on the networkless kernel),
+- **boot files are signature-verified** (kernel + initramfs against the
+  GRUB boot key).
+
+Prints one PASS/FAIL line per check; exit code 0 only when everything
+passes. Equivalent command: `coldiron-check [--boot-verify]`.
+
 ## Console commands
 
 | Command | Purpose |
@@ -136,6 +154,7 @@ first-time steps, the safety rules) from `/usr/share/coldiron/guide.txt`.
 | `coldiron-restore` | Decrypt a seed backup to the screen |
 | `coldiron-shutdown` | Unmount, close vault, drop caches, power off |
 | `coldiron-guide` | Show the first-time guide |
+| `coldiron-check` | Security posture check (menu option 8) |
 
 ## Other in-image tools
 

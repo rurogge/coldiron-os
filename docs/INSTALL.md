@@ -12,25 +12,28 @@ How to get COLDIRON OS onto a USB stick and boot it.
   both supported by the hybrid ISO. **Secure Boot is not supported yet**
   (see the threat model / roadmap).
 
-> ⚠️ **v0.1 is a prototype.** Do not store a valuable seed with it until
-> the security pass and v0.2 (networkless kernel) are complete.
+> ⚠️ **v0.3.0 is still a prototype.** Do not store a valuable seed with it
+> until the release artifacts are GPG-signed and the reproducible build is
+> demonstrated (see [THREAT-MODEL.md](THREAT-MODEL.md)).
 
 ## 1. Download
 
 Get the ISO from the [Releases](https://github.com/rurogge/coldiron-os/releases)
-page — `coldiron-os-0.1.0-amd64.iso` — and download the matching
+page — `coldiron-os-0.3.0-amd64.iso` — and download the matching
 `SHA256SUMS` file.
 
 ## 2. Verify the checksum
 
 ```sh
 sha256sum -c SHA256SUMS
-# coldiron-os-0.1.0-amd64.iso: OK
+# coldiron-os-0.3.0-amd64.iso: OK
 ```
 
 The `SHA256SUMS` file itself is published alongside the release; for the
 strongest guarantee, build the ISO yourself from source (see
-[BUILD.md](BUILD.md)) and compare hashes.
+[BUILD.md](BUILD.md)) and compare hashes. (A GPG-signed `SHA256SUMS.asc`
+will be published once the release-signing ceremony in
+[SIGNING.md](SIGNING.md) is done.)
 
 ## 3. Write the ISO to the USB stick
 
@@ -44,7 +47,7 @@ Then write the image (replace `/dev/sdX` with your device — **this
 destroys everything on it**):
 
 ```sh
-sudo dd if=coldiron-os-0.1.0-amd64.iso of=/dev/sdX bs=4M status=progress
+sudo dd if=coldiron-os-0.3.0-amd64.iso of=/dev/sdX bs=4M status=progress
 sync
 ```
 
@@ -53,8 +56,9 @@ sync
 1. Insert USB #1 and reboot.
 2. Enter the boot menu (usually `F12`, `Esc`, or `F11` depending on the
    machine) and select the USB stick.
-3. GRUB appears — the default entry boots automatically after a few
-   seconds. If the menu is frozen on your machine, press `Enter`.
+3. GRUB appears and **auto-boots the default entry after 10 seconds**.
+   The kernel and initramfs are PGP-verified by GRUB before execution
+   (`check_signatures=enforce`) — a tampered image refuses to boot.
 
 The system boots **entirely from RAM** (`toram`): with 4 GB of RAM the
 boot takes a couple of minutes; on slower USB sticks, longer. You'll land
@@ -79,24 +83,23 @@ cryptsetup close vault
 (replace `/dev/sdY` with the vault stick's device). Choose a strong
 passphrase and store it on paper — it is not recoverable.
 
-From now on, `coldiron-vault` (or menu option **1**) will detect the
+From now on, `coldiron-vault` (or menu option **2**) will detect the
 vault, ask for the passphrase, and mount it at `/mnt/vault` with the
 appliance's directory layout (`psbt/`, `descriptors/`, `labels/`,
 `xpubs/`, `encrypted-seed-backups/`, `checksums/`).
 
 ## 6. Verify the appliance is offline
 
-The image blacklists network drivers and enables only loopback. A quick
-sanity check:
+The kernel has **no network device drivers and no loadable modules** —
+networking is not merely disabled, it cannot exist. A quick sanity check:
 
 ```sh
 ip a        # only "lo" should be present
-ip route    # no default route
+coldiron-check   # menu option 8 — full posture check, all PASS
 ```
 
 ## Updating
 
-There is no update mechanism in v0.1: the OS runs from RAM and is
-rebuilt from source. When a new release is out, write the new ISO to a
-fresh USB. Your vault USB carries the data and is independent of the OS
-version.
+There is no update mechanism: the OS runs from RAM and is rebuilt from
+source. When a new release is out, write the new ISO to a fresh USB. Your
+vault USB carries the data and is independent of the OS version.

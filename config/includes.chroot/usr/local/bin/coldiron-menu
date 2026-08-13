@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# coldiron-menu — console launcher for COLDIRON OS (v0.2.0).
+# coldiron-menu — console launcher for COLDIRON OS (v0.3.0).
 #
 # NOTE: deliberately NO `set -e` — this is a launcher loop. Every option
 # script exits non-zero on ANY failure (user aborts a consent prompt, no

@@ -1,6 +1,6 @@
 # COLDIRON OS — Threat Model
 
-> Applies to v0.2.0 (prototype). Read this before trusting the image with
+> Applies to v0.3.0 (prototype). Read this before trusting the image with
 > anything valuable. The product acceptance criteria at the bottom define
 > what must be true before the PROTOTYPE banner comes off.
 
@@ -11,7 +11,7 @@
 | **BIP39 seed phrase(s)** | paper/metal backups (offline), optional age-encrypted file on the vault | LUKS2 + age passphrases, physical security |
 | **Wallet descriptors / xpubs** | `/vault/descriptors`, `/vault/xpubs` | LUKS2 encryption |
 | **PSBTs (unsigned / signed)** | `/vault/psbt` (transported via USB) | LUKS2 encryption at rest; never on a networked machine until broadcast |
-| **OS image itself** | the boot USB | read-only media, sha256-verifiable releases, auditable build |
+| **OS image itself** | the boot USB | read-only media, sha256-verifiable releases, GRUB-verified boot files, auditable build |
 
 ## Assumed attacker model
 
@@ -21,28 +21,41 @@
 2. **Casual physical access** — a lost or stolen USB. Mitigated by LUKS2
    encryption and the absence of persistent OS state (toram).
 3. **Dedicated physical adversaries** (law enforcement, theft with
-   forensics) — *explicitly out of scope for v0.2*. Tamper-evident
+   forensics) — *explicitly out of scope for v0.3*. Tamper-evident
    hardware, anti-glitch protections, and screen privacy are not addressed.
 
 We explicitly **do not** assume that the user's own machine is trusted:
 the whole point is that signing happens on a machine that has never seen
 the network.
 
-## Mitigations implemented in v0.2
+## Mitigations implemented in v0.3
 
 - **Runs entirely from RAM** (`toram`): nothing is written back to the
   boot USB; power-off removes all OS state, history, and session data.
-- **No usable networking**:
-  - network/wireless/USB-ethernet/Bluetooth/FireWire/Thunderbolt drivers
-    blacklisted (`/etc/modprobe.d/blacklist-coldiron.conf`),
-  - loopback-only `/etc/network/interfaces`, no network services enabled,
-  - IPv6 disabled, restrictive `sysctl`s (`kptr_restrict`, `dmesg_restrict`,
-    BPF hardening, `kexec_load_disabled`).
-  - **Limitation (prototype):** the kernel image still *contains* the
-    networking subsystem as loadable modules. A compromised root shell
-    could in principle load a driver and reach the network. Closing this
-    — a kernel compiled without network drivers/protocols — is the
-    v0.3 "product" milestone.
+- **Networkless kernel (the big one)**: the kernel is compiled from
+  Debian trixie source with `scripts/kernel/networkless.config` applied:
+  - `CONFIG_NETDEVICES=n` — **no network device drivers exist** in the
+    kernel (NIC, tun/veth, wireless, USB-ethernet, Bluetooth, NFC, CAN…),
+  - `CONFIG_MODULES=n` — **monolithic**: nothing is loadable, `/lib/modules`
+    does not exist, `modprobe` has nothing it could ever load. The old
+    "a compromised root shell loads a driver" attack is closed outright,
+  - `CONFIG_NETFILTER=n`, `CONFIG_IPV6=n`, `CONFIG_PACKET=n` — no packet
+    filter, no IPv6, no raw sockets. Loopback AF_INET and AF_UNIX stay
+    (`CONFIG_NET=y`, `CONFIG_INET=y`) because udev/X11/dbus and
+    Java/Sparrow need local sockets; loopback cannot reach hardware.
+  - Driver blacklist and restrictive sysctls remain as defense in depth
+    (belt *and* suspenders).
+- **Verified boot path**: GRUB (BIOS and EFI) loads the `pgp` module
+  *before* setting `check_signatures=enforce`, verifies kernel +
+  initramfs against the committed boot key (`keys/boot/`), and refuses to
+  execute tampered files (fails closed). The boot key detects
+  tampering/corruption; it is not a trust anchor — the *release*
+  signature is.
+- **Enforced confinement**: AppArmor profiles for the appliance scripts
+  (`coldiron-vault`, `coldiron-dice-seed`, `coldiron-digital-backup`,
+  `coldiron-restore`, `coldiron-shutdown`) load and enforce at boot;
+  the in-image security check (`coldiron-check`, menu option 8) asserts
+  the whole posture at runtime and prints PASS/FAIL per check.
 - **No persistence**: `noswap`, `noresume`, volatile `/var/log`, core
   dumps disabled, no shell history (`HISTFILE=/dev/null`).
 - **Encrypted vault**: the second USB is a LUKS2 container. The seed
@@ -54,80 +67,66 @@ the network.
   values), checksum bits computed (never rolled), in-app BIP84 self-check
   derivation so the user can prove the words are right before trusting
   them, and a mandatory paper-backup verification step.
-- **Verified binaries in the image**: Sparrow's release manifest is
-  GPG-verified against a keyring you import out-of-band (the build
-  *refuses* to auto-download keys); Bitcoin Core CLI tools are staged with
-  a pinned sha256 plus a cross-check against the official SHA256SUMS.
+- **Full binary verification (v0.3)**: Sparrow's release manifest is
+  GPG-verified against a keyring you import out-of-band; Bitcoin Core's
+  `SHA256SUMS.asc` is now **also** GPG-verified against `keys/bitcoin.gpg`
+  (out-of-band), with pinned sha256 as a second layer. The build *refuses*
+  to auto-download keys.
 - **Beginner guidance layer (v0.2)**: every menu entry carries a
   plain-language description, a first-time guide explains seeds/vaults/
   addresses, and scripts show a "What this does / What you need / What
   happens next" preamble before acting.
 - **Auditable build**: the whole image is produced by `live-build` from
-  plain-text config in this repository — no binary blobs other than the
-  verified upstream artifacts.
+  plain-text config in this repository; the kernel is built from Debian
+  source with a committed config fragment — no binary blobs other than
+  the verified upstream artifacts.
 
-## Honest limitations (v0.2 — the product backlog)
+## Honest limitations (v0.3 — the product backlog)
 
-1. The kernel **still contains its networking subsystem** as modules —
-   networking is very hard to enable *accidentally* but not impossible for
-   a determined attacker with a compromised root shell. A kernel compiled
-   without network drivers/protocols is the #1 product milestone.
-2. **No secure boot / boot integrity verification** yet: the ISO boots via
-   legacy GRUB/EFI without signature enforcement, and release artifacts are
-   not yet GPG-signed by a project key. A tampered USB could in principle
-   boot different code.
-3. **No reproducible build yet**: `SOURCE_DATE_EPOCH`, a pinned base-image
-   snapshot and a two-machine byte-diff build comparison are not yet in
-   place, so you cannot yet verify that the ISO you download is
-   byte-identical to what this repo produces.
-4. **Bitcoin Core verification is partial**: pinned sha256 + HTTPS
-   cross-check, but the `SHA256SUMS.asc` GPG signature is not yet verified
-   against a user-supplied keyring (the Sparrow-style out-of-band trust
-   model).
-5. **AppArmor and nftables are installed but not enforced**: no mandatory
-   confinement profiles, no default-deny packet policy at boot.
-6. **Hardware wallets / smartcards**: `pcscd`, OpenSC and libusb are
-   installed, but the workflow is not yet exercised end-to-end.
-7. **Default credentials are documented** (`root` autologin on the console,
+1. **Release artifacts are not yet GPG-signed by the project key.** The
+   release key does not exist yet; `SHA256SUMS.asc` and ISO signatures
+   come from an offline ceremony (see [SIGNING.md](SIGNING.md)) and will
+   be published with the release. Until then, a tampered *downloaded* ISO
+   is caught only by comparing sha256 with your own build. The in-ISO
+   boot chain, however, is already verified by GRUB.
+2. **Reproducible build not yet demonstrated.** The mechanism is in place
+   (`SOURCE_DATE_EPOCH`, `snapshot.debian.org` pinning, independent CI
+   builder), but a published byte-diff between a local and a CI build is
+   still outstanding.
+3. **UEFI Secure Boot enrollment** is future work. GRUB's own signature
+   enforcement covers the kernel/initramfs, but the bootloader itself is
+   not yet anchored to machine firmware.
+4. **Hardware wallets / smartcards**: `pcscd`, OpenSC and libusb are
+   installed, but the workflow is not yet exercised end-to-end on real
+   devices (QEMU cannot attach them).
+5. **Dedicated physical adversaries** (forensics, tamper-evident
+   hardware, side-channel, malicious firmware) are explicitly out of
+   scope — as is **screen privacy** (shoulder-surfing is the user's
+   responsibility).
+6. **Default credentials are documented** (`root` autologin on the console,
    root password `coldiron` for other ttys): physical possession of the USB
    is treated as the real authentication. Change the password with `passwd`
    if you rely on it.
-8. **Screen privacy**: no privacy screen or display-locking policy is
-   enforced. Shoulder-surfing is the user's responsibility.
 
 ## Product acceptance criteria (the bar for removing the PROTOTYPE banner)
 
 A release may be declared a *product* (not a prototype) only when **all**
-of the following are true and verified by the test suite:
+of the following are true and verified by the test suite. Status as of
+v0.3.0:
 
-1. **Networkless kernel**: the shipped kernel is compiled with no network
-   device drivers and no loadable networking modules (loopback-only stack
-   kept only because userspace — X11, dbus, udev — requires local
-   sockets). Verified at boot: no network-capable device is ever probed,
-   `lsmod` shows no net modules, and loading one is impossible.
-2. **Verified boot path**: release artifacts are GPG-signed by the project
-   signing key (SHA256SUMS.asc), and the ISO's boot files (kernel +
-   initramfs) are integrity-checked by GRUB against the embedded project
-   key before execution. Documented residual risk: UEFI Secure Boot
-   enrollment is future work; the pre-boot sha256/signature check of the
-   downloaded ISO remains the user's first control.
-3. **Reproducible build**: two independent builds (local + CI) produce a
-   byte-identical ISO, and the build pins its base image to a
-   snapshot.debian.org date with `SOURCE_DATE_EPOCH` set.
-4. **Full GPG verification of every staged binary**: Sparrow (done) and
-   Bitcoin Core `SHA256SUMS.asc` (to add) are verified against keyrings the
-   user imports out-of-band; the build refuses to auto-download keys.
-5. **Enforced confinement**: AppArmor profiles for the appliance scripts
-   are loaded and enforced at boot, and a default-deny packet policy is
-   active where the kernel supports packet filtering.
-6. **Documentation truth**: README, THREAT-MODEL, BUILD, INSTALL, USAGE,
-   TESTING and dice-seed docs all describe the shipped release exactly —
-   no stale version references, no claimed-but-missing features.
-7. **Full regression**: the entire host test suite and the QEMU E2E suite
-   pass on the release candidate, including the new security features.
+| # | Criterion | Status (v0.3.0) |
+|---|---|---|
+| 1 | **Networkless kernel**: compiled with no network device drivers and no loadable modules (loopback-only stack kept for userspace). Verified at boot: no network-capable device is ever probed, `lsmod` shows no net modules, loading one is impossible. | ✅ **DONE** — `6.12.101-coldiron`, `CONFIG_NETDEVICES=n` + `CONFIG_MODULES=n`; asserted by `coldiron-check` (menu 8) and the E2E |
+| 2 | **Verified boot path**: release artifacts GPG-signed by the project signing key (`SHA256SUMS.asc`), and the ISO's boot files integrity-checked by GRUB against the embedded key before execution. | ⚠️ **PARTIAL** — GRUB verification ✅ done and E2E-proven; artifact signing ❌ pending (offline ceremony, [SIGNING.md](SIGNING.md)) |
+| 3 | **Reproducible build**: two independent builds (local + CI) produce a byte-identical ISO; base image pinned to a `snapshot.debian.org` date with `SOURCE_DATE_EPOCH` set. | ⚠️ **PARTIAL** — mechanism ✅ in place; published byte-diff ❌ not demonstrated |
+| 4 | **Full GPG verification of every staged binary**: Sparrow and Bitcoin Core `SHA256SUMS.asc` verified against keyrings the user imports out-of-band; the build refuses to auto-download keys. | ✅ **DONE** — `keys/sparrow.gpg` + `keys/bitcoin.gpg` |
+| 5 | **Enforced confinement**: AppArmor profiles loaded and enforced at boot; default-deny packet policy active where the kernel supports packet filtering. | ✅ **DONE** — enforced at boot, asserted by `coldiron-check` (networkless kernel has no packet filtering at all) |
+| 6 | **Documentation truth**: README, THREAT-MODEL, BUILD, INSTALL, USAGE, TESTING and dice-seed docs all describe the shipped release exactly — no stale version references, no claimed-but-missing features. | ✅ **DONE** for v0.3.0 (2026-08-13) |
+| 7 | **Full regression**: the entire host test suite and the QEMU E2E suite pass on the release candidate, including the new security features. | ✅ **DONE** — 27/27 host + 19/19 QEMU E2E (3 boots, incl. real GRUB path) |
 
-Items 1–5 correspond to the v0.3 security pass; 6–7 are enforced on every
-release.
+Items 1, 4, 5 and 7 are complete; **2 and 3 are the only blockers** —
+release signing (offline ceremony) and a demonstrated reproducible
+byte-diff. The banner comes off when both are published with a release.
 
 ## Operational rules the appliance enforces
 

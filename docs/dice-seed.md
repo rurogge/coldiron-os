@@ -1,4 +1,4 @@
-# Dice-Seed Wallet (v0.2.0)
+# Dice-Seed Wallet (v0.2, shipped since v0.2.0 — current: v0.3.0)
 
 Generate a brand-new Bitcoin wallet from **physical dice rolls** — no computer
 randomness involved. This makes COLDIRON a Coldcard-style "dice wallet".

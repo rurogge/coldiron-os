@@ -8,11 +8,12 @@ security reports seriously and will respond to every valid one.
 
 | Version | Status |
 |---|---|
-| v0.2.x | Prototype — supported for bug reports, **not** recommended for real funds |
+| v0.3.x | Prototype (security pass) — supported for bug reports, **not** recommended for real funds (release signing + reproducible byte-diff pending, see THREAT-MODEL.md) |
+| v0.2.x | EOL — no longer supported |
 | v0.1.x | EOL — no longer supported |
 
-Once the v0.3.0 product release ships, this table will track it and
-define the supported window.
+Once the first *product* release ships (all acceptance criteria met, see
+THREAT-MODEL.md), this table will define the supported window for it.
 
 ## Reporting a vulnerability
 
@@ -38,9 +39,14 @@ privately:
 
 - Every binary staged into the image is verified against a key the user
   imports out-of-band — the build refuses to trust a key fetched on the
-  spot.
-- The image runs from RAM, has no persistent state, and (v0.3+) ships a
-  kernel with no network drivers.
+  spot (Sparrow manifest + Bitcoin Core `SHA256SUMS.asc`, both GPG).
+- The image runs from RAM, has no persistent state, and (since v0.3.0)
+  ships a **networkless monolithic kernel** — no network device drivers,
+  no loadable modules.
+- The boot files (kernel + initramfs) are PGP-verified by GRUB before
+  execution (`check_signatures=enforce`, `keys/boot/`); the appliance
+  scripts run under enforced AppArmor profiles; `coldiron-check`
+  (menu option 8) proves the posture at runtime.
 - **Out of scope / explicitly not promised:** protection against dedicated
   physical adversaries with forensics capabilities, tamper-evident
   hardware, side-channel attacks on the hardware, and malicious BIOS/UEFI
@@ -58,6 +64,13 @@ The most security-sensitive code paths in this repository are:
   `config/includes.chroot/etc/sysctl.d/99-coldiron.conf` — kernel-level
   attack-surface reduction.
 - `config/includes.chroot/usr/local/bin/coldiron-*` — the appliance
-  scripts (vault, dice-seed, backup/restore, shutdown).
-- `build.sh` / `build-docker.sh` / `scripts/build-kernel.sh` — the build
-  pipeline and (v0.3+) custom networkless kernel build.
+  scripts (vault, dice-seed, backup/restore, shutdown, check).
+- `config/includes.chroot/etc/apparmor.d/` — the enforced confinement
+  profiles for the appliance scripts.
+- `scripts/build-kernel.sh` + `scripts/kernel/networkless.config` — the
+  networkless monolithic kernel build (CONFIG_NETDEVICES=n,
+  CONFIG_MODULES=n).
+- `scripts/sign-release.sh` + `docs/SIGNING.md` — the offline release
+  signing ceremony (pending: the release key does not exist yet).
+- `build.sh` / `build-docker.sh` — the build pipeline (reproducible:
+  `SOURCE_DATE_EPOCH` + snapshot.debian.org pinning).

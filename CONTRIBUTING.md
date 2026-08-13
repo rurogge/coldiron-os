@@ -26,8 +26,9 @@ tool people may trust with real bitcoin.
 2. Branch from `main`, keep changes small and reviewable.
 3. Every change to `config/includes.chroot/`, `config/hooks/`, or the
    `coldiron-*` scripts **must** come with a test update. The existing
-   host test suite and the QEMU E2E harness in `scripts/qemu-test.sh`
-   (see `docs/TESTING.md`) must pass before merge. New behavior gets new
+   host test suite (`scripts/host-tests.sh`) and the QEMU E2E harness
+   (`scripts/e2e/run-all.sh`, smoke test: `scripts/qemu-test.sh`) — see
+   `docs/TESTING.md` — must pass before merge. New behavior gets new
    test vectors.
 4. Run `bash -n` on every changed script and `python3 -m py_compile` on
    any embedded Python.
