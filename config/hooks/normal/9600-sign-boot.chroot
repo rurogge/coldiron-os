@@ -23,10 +23,13 @@ if [ -f "${KEYDIR}/boot.sec" ] && command -v gpg >/dev/null 2>&1; then
     [ -f "${f}" ] || continue
     case "${f}" in *.sig) continue ;; esac
     # --faked-system-time pins the signature creation time (the sig packet
-    # embeds it) so the .sig is byte-identical across builders. Must be
-    # AFTER the boot key's creation (1786528838) or gpg refuses to sign.
+    # embeds it) so the .sig is byte-identical across builders. Use the fixed
+    # value, NOT SOURCE_DATE_EPOCH: live-build always sets SDE (1786492800 =
+    # 2026-08-12T00:00:00Z) which is BEFORE the boot key's creation
+    # (1786528838) and gpg refuses with "Time conflict". 1786579200 =
+    # 2026-08-13T00:00:00Z, after the key.
     gpg --batch --quiet --homedir "${GNUPGHOME}" \
-        --faked-system-time "${SOURCE_DATE_EPOCH:-1786579200}" \
+        --faked-system-time 1786579200 \
         --detach-sign --output "${SIGDIR}/$(basename "${f}").sig" "${f}"
   done
   # binary keyring for gpgv (coldiron-check) — gpgv cannot read armored keys.
