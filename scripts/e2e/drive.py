@@ -219,10 +219,9 @@ def syscheck():
     """Security posture verification (the product acceptance criteria #1/#5)."""
     # networkless: only loopback
     t = run('ls /sys/class/net')
-    body = t.split('~# ', 1)[-1] if '~# ' in t else t          # drop the shell prompt
+    body = re.sub(r'root@.*#', '', t) if 'root@' in t else t    # strip the shell prompt entirely
     ifaces = [l.strip() for l in body.splitlines()
-              if re.match(r'^\s*\S+\s*$', l) and l.strip() != ''
-              and 'root@' not in l and '@' not in l]
+              if re.match(r'^\s*\S+\s*$', l) and l.strip() != '']
     check('net: only lo', ifaces == ['lo'], t[-300:])
     t = run('cat /proc/net/dev')
     check('net: /proc/net/dev has only lo', re.search(r'^\s*lo:', t, re.M) is not None and
