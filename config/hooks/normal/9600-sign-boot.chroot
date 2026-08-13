@@ -22,7 +22,11 @@ if [ -f "${KEYDIR}/boot.sec" ] && command -v gpg >/dev/null 2>&1; then
   for f in /boot/vmlinuz-* /boot/initrd.img-*; do
     [ -f "${f}" ] || continue
     case "${f}" in *.sig) continue ;; esac
+    # --faked-system-time pins the signature creation time (the sig packet
+    # embeds it) so the .sig is byte-identical across builders. Must be
+    # AFTER the boot key's creation (1786528838) or gpg refuses to sign.
     gpg --batch --quiet --homedir "${GNUPGHOME}" \
+        --faked-system-time "${SOURCE_DATE_EPOCH:-1786579200}" \
         --detach-sign --output "${SIGDIR}/$(basename "${f}").sig" "${f}"
   done
   # binary keyring for gpgv (coldiron-check) — gpgv cannot read armored keys.
