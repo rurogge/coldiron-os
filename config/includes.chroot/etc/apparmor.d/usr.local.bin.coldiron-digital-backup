@@ -20,6 +20,8 @@ profile /usr/local/bin/coldiron-digital-backup {
   /{usr/,}bin/date ux,
   /{usr/,}bin/mkdir ux,
   /mnt/vault/** rw,
+  /tmp/ rw,
+  /tmp/** rw,   # mktemp seed staging file
   /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
   /dev/tty rw,                   # interactive menu I/O
   /dev/ttyS0 rw,                 # serial console (E2E / remote)
