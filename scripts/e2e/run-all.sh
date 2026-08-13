@@ -30,6 +30,15 @@ step() {  # step <name> <cmd...>
 
 qemu_alive() { pgrep -f 'qemu-syste[m]' >/dev/null 2>&1; }
 
+# Cleanup: a previous failed run can leave an orphan qemu (a mon.py quit
+# failure) whose sockets/monitor pollute this run. Kill strays first.
+if qemu_alive; then
+  echo ">>> killing stray qemu from a previous run..."
+  pkill -9 -f 'qemu-syste[m]' 2>/dev/null || true
+  sleep 2
+fi
+trap 'pkill -9 -f "qemu-syste[m]" 2>/dev/null || true' EXIT
+
 [ -f "$ISO" ] || { echo "NO ISO — build not finished: $ISO"; exit 1; }
 mkdir -p "$E2E_DIR"
 
