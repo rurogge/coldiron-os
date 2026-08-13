@@ -34,6 +34,15 @@ set -e
 
 export SOURCE_DATE_EPOCH=1786492800
 
+# Normalize ownership: when the build runs in a container whose bind mount
+# is shared with a host user (uid 1001 on the reference builder), files
+# created/extracted into the chroot can carry that uid. mkinitramfs keeps
+# source ownership (cpio without -R 0:0 when run as root) and the rootfs is
+# packed with it, which makes the initramfs cpio headers AND the squashfs
+# metadata differ between builders. Force every non-root-owned file back to
+# root:root — a no-op on builders that are already clean.
+find / -xdev -uid 1001 -exec chown 0:0 {} + 2>/dev/null || true
+
 UPDATE_INITRAMFS=/usr/sbin/update-initramfs.orig.initramfs-tools
 if [ ! -x "${UPDATE_INITRAMFS}" ]; then
   UPDATE_INITRAMFS=/usr/sbin/update-initramfs
