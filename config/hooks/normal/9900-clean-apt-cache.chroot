@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# 9900-clean-apt-cache.chroot — remove apt cache artifacts from the image.
+#
+# pkgcache.bin / srcpkgcache.bin embed the build machine's absolute chroot
+# path (and per-build apt state), so they are NOT byte-reproducible across
+# builders (local /tmp/... vs CI /home/runner/...) and must not ship in the
+# ISO. --apt-indices false already drops the package lists; these caches
+# are the leftover that broke the v0.3.0 byte-diff.
+set -e
+
+rm -f /var/cache/apt/pkgcache.bin /var/cache/apt/srcpkgcache.bin
+rm -rf /var/cache/apt/archives/*
+rm -rf /var/lib/apt/lists/*
+
+exit 0

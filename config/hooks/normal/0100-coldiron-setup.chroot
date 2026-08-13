@@ -39,7 +39,9 @@ EOF
 
 # Root password: documented default (offline appliance, no remote
 # attack surface; allows login on other ttys / serial for troubleshooting).
-echo 'root:coldiron' | chpasswd
+# Fixed crypt hash (SHA-512, fixed salt) — chpasswd's default yescrypt uses
+# a RANDOM salt per run, which broke the reproducible byte-diff.
+echo 'root:$6$c0ld1r0n$bdmhyPfhjcMYOhvC7SmJJzumijwsC0KZXz5sw2dWI9EBIWpv4.2ljSu6onY1SmaVZBEAx5u1roqU.OTI4hyTg.' | chpasswd -e
 
 mkdir -p /root/.config/openbox
 

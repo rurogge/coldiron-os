@@ -186,6 +186,11 @@ export KBUILD_BUILD_USER="coldiron"
 export KBUILD_BUILD_HOST="coldiron-builder"
 export DEBFULLNAME="COLDIRON OS Builder"
 export DEBEMAIL="builder@coldiron.invalid"
+# The kernel's UTS_VERSION string (init/Makefile build-timestamp) AND the
+# embedded default-initramfs cpio mtime (usr/Makefile passes
+# -d "$(KBUILD_BUILD_TIMESTAMP)" to gen_initramfs.sh) both fall back to the
+# real build time unless this is set — pin it to SOURCE_DATE_EPOCH.
+export KBUILD_BUILD_TIMESTAMP="$(LC_ALL=C date -u -d "@${SOURCE_DATE_EPOCH}")"
 # mkdebian's changelog uses `date -R` (real build time) with no
 # SOURCE_DATE_EPOCH support. Shim `date -R` to return the pinned build
 # timestamp; every other date invocation passes through untouched.

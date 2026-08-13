@@ -25,10 +25,13 @@ if [ -f "${KEYDIR}/boot.sec" ] && command -v gpg >/dev/null 2>&1; then
     gpg --batch --quiet --homedir "${GNUPGHOME}" \
         --detach-sign --output "${SIGDIR}/$(basename "${f}").sig" "${f}"
   done
-  # binary keyring for gpgv (coldiron-check) — gpgv cannot read armored keys
+  # binary keyring for gpgv (coldiron-check) — gpgv cannot read armored keys.
+  # Export to a plain pubring instead of --import into a keybox: the kbx
+  # header embeds the CURRENT TIME (created/last-modified fields), which
+  # broke the reproducible byte-diff. A --export stream has no file
+  # timestamps and is byte-identical across builds for the same key.
   gpg --batch --quiet --homedir "${GNUPGHOME}" \
-      --no-default-keyring --keyring "${KEYDIR}/boot-keyring.gpg" \
-      --import "${KEYDIR}/boot-key.pub"
+      --export > "${KEYDIR}/boot-keyring.gpg"
   rm -rf "${GNUPGHOME}"
   rm -f "${KEYDIR}/boot.sec"
   echo "==> COLDIRON: boot files signed; temporary private key removed"
