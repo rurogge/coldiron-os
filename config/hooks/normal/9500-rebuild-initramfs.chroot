@@ -52,7 +52,10 @@ export SOURCE_DATE_EPOCH=1786492800
 #     bit on /usr/bin/mount (package default 4755).
 find / -xdev -uid 1001 -exec chown 0:0 {} + 2>/dev/null || true
 find / -xdev -type l -exec chown -h 0:0 {} + 2>/dev/null || true
-chmod u+s /usr/bin/mount 2>/dev/null || true
+# chown(2) clears S_ISUID/S_ISGID even when run as root; restore the
+# setuid binaries that were polluted (everything else keeps its bits).
+chmod u+s /usr/bin/mount /usr/bin/umount /usr/bin/su /usr/bin/passwd \
+    /usr/bin/newgrp /usr/bin/chsh /usr/bin/chfn /usr/bin/gpasswd 2>/dev/null || true
 # mount points are on other filesystems: chown follows into the mounted
 # fs (root-owned there) but never touches the underlying chroot dir that
 # the squashfs packs. Unmount, chown, remount.
