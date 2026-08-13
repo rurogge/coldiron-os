@@ -178,6 +178,27 @@ echo "  ✔ config verified (networkless, monolithic, enable list honoured)"
 # ---- build ----------------------------------------------------------------
 say "Building kernel + image package (this takes 30-60 min on 8 cores)..."
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
+# Deterministic build identity: the kernel packaging (scripts/package/mkdebian)
+# writes "$(id -un)@$(hostname)" into the package changelog and the control
+# Maintainer field. A container's hostname is a random ID — pin the identity
+# so two builds on different machines produce the same bytes.
+export KBUILD_BUILD_USER="coldiron"
+export KBUILD_BUILD_HOST="coldiron-builder"
+export DEBFULLNAME="COLDIRON OS Builder"
+export DEBEMAIL="builder@coldiron.invalid"
+# mkdebian's changelog uses `date -R` (real build time) with no
+# SOURCE_DATE_EPOCH support. Shim `date -R` to return the pinned build
+# timestamp; every other date invocation passes through untouched.
+mkdir -p "${BUILD_DIR}/bin"
+cat > "${BUILD_DIR}/bin/date" <<'EOF'
+#!/bin/sh
+if [ "$1" = "-R" ] && [ -n "${SOURCE_DATE_EPOCH}" ]; then
+  exec /bin/date -uR -d "@${SOURCE_DATE_EPOCH}"
+fi
+exec /bin/date "$@"
+EOF
+chmod +x "${BUILD_DIR}/bin/date"
+export PATH="${BUILD_DIR}/bin:${PATH}"
 JOBS="${JOBS:-$(nproc)}"   # allow CI/small machines to cap parallelism
 make -j"${JOBS}" bindeb-pkg KDEB_PKGVERSION="${DEB_VERSION}" LOCALVERSION="${LOCALVERSION}"
 
