@@ -54,7 +54,19 @@ byte-diff is demonstrated (acceptance criteria 2 and 3 in
 - QEMU/KVM E2E: **19/19 steps across 3 boots** — fresh vault, Sparrow
   window, and a third boot through the *real GRUB* path proving the
   verified-boot chain end-to-end.
-- ISO: `coldiron-os-0.3.0-amd64.iso`.
+- **Byte-reproducible ISO**: the same commit builds a byte-identical ISO
+  locally and on the CI runner
+  (`9bebf36feaed981795051c8154040e5c35b1629bf8a36420ac2e57fdf3175733`,
+  verified with `cmp`) — acceptance criterion 3 of the threat model is
+  now demonstrated. Beyond `SOURCE_DATE_EPOCH` and the pinned snapshot,
+  this required normalizing the initramfs rebuild (forced epoch +
+  bypassing the live-boot wrapper + `chroot_hacks` skip marker),
+  uid/gid ownership (host-user uid 1001 vs root on CI, including
+  usrmerge symlinks, mount-point dirs and system groups), the setuid
+  bits that `chown(2)` clears, apt `pkgcache.bin` (excluded at pack
+  time), and the squashfs entry order (canonical sort file). See
+  [BUILD.md](docs/BUILD.md#reproducible-builds).
+- ISO: `coldiron-os-0.3.0-amd64.iso` (sha256 `9bebf36f…`).
 
 ## [v0.2.0] — 2026-08-11 — dice wallet + beginner guidance
 

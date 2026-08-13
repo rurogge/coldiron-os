@@ -149,5 +149,43 @@ The build pins a `snapshot.debian.org` date and `SOURCE_DATE_EPOCH`
 deterministic. An independent CI builder
 (`.github/workflows/reproducible.yml`) builds the same commit on GitHub
 runners; comparing `sha256` of the two ISOs is the reproducibility check.
-This is not yet demonstrated for a release (see
-[THREAT-MODEL.md](THREAT-MODEL.md) acceptance criteria).
+
+**Demonstrated for v0.3.0 (2026-08-13):** the local build and the CI
+runner both produce
+
+```
+9bebf36feaed981795051c8154040e5c35b1629bf8a36420ac2e57fdf3175733  coldiron-os-0.3.0-amd64.iso
+```
+
+(byte-identical, verified with `cmp`).
+
+### What had to be pinned, beyond timestamps
+
+A byte-identical ISO required normalizing four more sources of drift
+between the reference builder (this machine) and the CI runner — all
+handled inside `config/hooks/normal/9500-rebuild-initramfs.chroot` and
+the pack configuration:
+
+- **initramfs rebuild**: live-build's final `chroot_hacks` step
+  regenerates the initramfs *after* the hooks, without
+  `SOURCE_DATE_EPOCH`. The hook now forces the epoch, calls
+  `update-initramfs.orig.initramfs-tools` directly (bypassing the
+  live-boot wrapper), and drops the `initrd.img_has_already_been_regenerated`
+  marker so `chroot_hacks` skips its own regeneration.
+- **Ownership**: files created in the chroot on the reference builder
+  carry the host user's uid (1001) while the CI's are root-owned. The
+  hook normalizes uid/gid to the package defaults (chown of polluted
+  files, `chown -h` for usrmerge symlinks, unmount/chown/remount of
+  `/proc` `/sys` `/dev/pts`, group restore for shadow/crontab/mail/
+  utmp/journal/systemd-network, setuid restore on the eight affected
+  binaries — `chown(2)` clears `S_ISUID` even as root).
+- **Apt cache artifacts**: `pkgcache.bin`/`srcpkgcache.bin` are
+  recreated by apt after the cleaning hook and embed per-build state;
+  `config/rootfs/excludes` drops them at pack time
+  (`mksquashfs -ef -wildcards`).
+- **Pack order**: `config/rootfs/squashfs.sort` (generated from a
+  clean CI rootfs) makes `mksquashfs` emit files in a canonical order —
+  `mksquashfs` 4.6.1 uses raw `readdir` order otherwise.
+
+Signature creation times are pinned with `gpg --faked-system-time` in
+both signing hooks (kernel/initramfs `.sig` and `/live` signatures).
