@@ -10,19 +10,45 @@
 # full package install and rebuilds every initramfs, so live-boot
 # support is guaranteed for the shipped kernel.
 #
+# Determinism notes (byte-identical initrd across builders):
+#   - SOURCE_DATE_EPOCH is forced to the committed value: live-build's
+#     Chroot helper passes the host's SDE, but the dpkg trigger that
+#     fires later (chroot_hacks' `update-initramfs -k all -t -u`) can
+#     regenerate the initramfs without it in the environment, which
+#     yields REAL mtimes in the cpio (non-deterministic). Setting it
+#     here hardens every mkinitramfs run this hook performs.
+#   - update-initramfs is called via the .orig directly: the
+#     live-update-initramfs wrapper (live-tools) takes a different
+#     branch when /.live-build is absent, which is one more variable.
+#   - The initrd.img_has_already_been_regenerated marker makes
+#     live-build's chroot_hacks SKIP its own `update-initramfs -k all
+#     -t -u` (the marker check is built into chroot_hacks), so the
+#     initramfs packed into the image is exactly the one built here,
+#     with the pinned SDE.
+#
 # NOTE: `-u -k all` silently does NOTHING here — it discovers kernels
 # via /lib/modules and skips kernels without an existing initrd.
 # Use `-c` (create) with explicit versions enumerated from /boot/vmlinuz-*.
 #
 set -e
 
-if command -v update-initramfs >/dev/null 2>&1; then
+export SOURCE_DATE_EPOCH=1786492800
+
+UPDATE_INITRAMFS=/usr/sbin/update-initramfs.orig.initramfs-tools
+if [ ! -x "${UPDATE_INITRAMFS}" ]; then
+  UPDATE_INITRAMFS=/usr/sbin/update-initramfs
+fi
+
+if command -v update-initramfs >/dev/null 2>&1 && [ -x "${UPDATE_INITRAMFS}" ]; then
   for vml in /boot/vmlinuz-*; do
     [ -e "${vml}" ] || continue
     ver="${vml#/boot/vmlinuz-}"
     echo "COLDIRON: building initramfs for ${ver}..."
-    update-initramfs -c -k "${ver}" 2>/dev/null || true
+    "${UPDATE_INITRAMFS}" -c -k "${ver}" 2>/dev/null || true
   done
+  # tell live-build's chroot_hacks the initramfs is already fresh, so it
+  # skips its own regeneration (which lacks the forced SOURCE_DATE_EPOCH)
+  : > /initrd.img_has_already_been_regenerated
 fi
 
 exit 0
