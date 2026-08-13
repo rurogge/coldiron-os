@@ -53,6 +53,18 @@ export SOURCE_DATE_EPOCH=1786492800
 find / -xdev -uid 1001 -exec chown 0:0 {} + 2>/dev/null || true
 find / -xdev -type l -exec chown -h 0:0 {} + 2>/dev/null || true
 chmod u+s /usr/bin/mount 2>/dev/null || true
+# mount points are on other filesystems so -xdev never visits them
+chown 0:0 /proc /sys /dev/pts 2>/dev/null || true
+# chown(2) zeroed the gid of every polluted file, but the package defaults
+# use dedicated groups; restore them so the squashfs uid/gid tables match a
+# clean builder (groups resolved by name from /etc/group, so gids stay in
+# sync with the image).
+chgrp -h shadow /etc/shadow /etc/gshadow /usr/sbin/unix_chkpwd /usr/bin/expiry /usr/bin/chage 2>/dev/null || true
+chgrp -h crontab /usr/bin/crontab /var/spool/cron/crontabs 2>/dev/null || true
+chgrp -h mail /var/mail 2>/dev/null || true
+chgrp -h systemd-journal /var/log/journal 2>/dev/null || true
+chgrp -h utmp /var/log/wtmp /var/log/lastlog /var/log/btmp 2>/dev/null || true
+chgrp -hR systemd-network /var/lib/systemd/network /run/systemd/netif 2>/dev/null || true
 
 UPDATE_INITRAMFS=/usr/sbin/update-initramfs.orig.initramfs-tools
 if [ ! -x "${UPDATE_INITRAMFS}" ]; then
