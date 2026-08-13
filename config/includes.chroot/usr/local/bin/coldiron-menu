@@ -52,7 +52,7 @@ while true; do
       ;;
     6) coldiron-shutdown ;;
     7) coldiron-guide ;;
-    8) coldiron-check ;;
+    8) coldiron-check; echo; read -rsp "Press Enter to return to the menu." _ ;;
     q|Q) exit 0 ;;
     *) echo "   Invalid choice." ;;
   esac

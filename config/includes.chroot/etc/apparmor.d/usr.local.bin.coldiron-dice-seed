@@ -19,6 +19,8 @@ profile /usr/local/bin/coldiron-dice-seed {
   /{usr/,}bin/python3.* ux,
   /usr/local/bin/coldiron-digital-backup px,
   /dev/urandom r,
+  /tmp/ rw,
+  /tmp/** rw,   # --test mode (battery vectors)
   /usr/local/bin/coldiron-* r,   # bash reads the script under the profile
   /dev/tty rw,                   # interactive menu I/O
   /dev/ttyS0 rw,                 # serial console (E2E / remote)

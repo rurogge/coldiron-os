@@ -219,11 +219,13 @@ def syscheck():
     """Security posture verification (the product acceptance criteria #1/#5)."""
     # networkless: only loopback
     t = run('ls /sys/class/net')
-    check('net: only lo', re.search(r'^\s*lo\s*$', t, re.M) is not None and
-          not re.search(r'eth|wlan|enp|wl|wwan|usb', t, re.I), t[-300:])
+    body = t.split('~# ', 1)[-1] if '~# ' in t else t          # drop the shell prompt
+    ifaces = [l.strip() for l in body.splitlines()
+              if re.match(r'^\s*\S+\s*$', l) and l.strip() != '']
+    check('net: only lo', ifaces == ['lo'], t[-300:])
     t = run('cat /proc/net/dev')
     check('net: /proc/net/dev has only lo', re.search(r'^\s*lo:', t, re.M) is not None and
-          len(re.findall(r'^\s*\S+:', t, re.M)) == 1, t[-300:])
+          len(re.findall(r'^\s*\S+:\s*\d', t, re.M)) == 1, t[-300:])
     # no loadable modules (the kernel deb ships an EMPTY /lib/modules dir —
     # count .ko files, not directories)
     t = run('find /lib/modules -name *.ko 2>/dev/null | wc -l')
