@@ -8,12 +8,12 @@ security reports seriously and will respond to every valid one.
 
 | Version | Status |
 |---|---|
-| v0.3.x | Prototype (security pass) — supported for bug reports, **not** recommended for real funds (release signing + reproducible byte-diff pending, see THREAT-MODEL.md) |
+| v0.3.x | Product (first product release) — supported for bug reports; all acceptance criteria met (GPG-signed artifacts + reproducible build, see THREAT-MODEL.md). One-shot signing key revoked by design — the fingerprint is the trust anchor (SIGNING.md) |
 | v0.2.x | EOL — no longer supported |
 | v0.1.x | EOL — no longer supported |
 
-Once the first *product* release ships (all acceptance criteria met, see
-THREAT-MODEL.md), this table will define the supported window for it.
+v0.3.0 is the first *product* release (all acceptance criteria met, see
+THREAT-MODEL.md); the table above defines the supported window.
 
 ## Reporting a vulnerability
 
@@ -71,6 +71,6 @@ The most security-sensitive code paths in this repository are:
   networkless monolithic kernel build (CONFIG_NETDEVICES=n,
   CONFIG_MODULES=n).
 - `scripts/sign-release.sh` + `docs/SIGNING.md` — the offline release
-  signing ceremony (pending: the release key does not exist yet).
+  signing ceremony (v0.3.0 used a one-shot key, revoked after signing — see SIGNING.md).
 - `build.sh` / `build-docker.sh` — the build pipeline (reproducible:
   `SOURCE_DATE_EPOCH` + snapshot.debian.org pinning).
