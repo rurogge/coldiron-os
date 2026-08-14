@@ -12,9 +12,11 @@ How to get COLDIRON OS onto a USB stick and boot it.
   both supported by the hybrid ISO. **Secure Boot is not supported yet**
   (see the threat model / roadmap).
 
-> ⚠️ **v0.3.0 is still a prototype.** Do not store a valuable seed with it
-> until the release artifacts are GPG-signed and the reproducible build is
-> demonstrated (see [THREAT-MODEL.md](THREAT-MODEL.md)).
+> ✅ **v0.3.0 is a product release** — all acceptance criteria met
+> (GPG-signed artifacts + reproducible build, see
+> [THREAT-MODEL.md](THREAT-MODEL.md)). Note the one-shot signing key is
+> revoked by design: verify against the fingerprint
+> ([SIGNING.md](SIGNING.md)).
 
 ## 1. Download
 
@@ -29,11 +31,11 @@ sha256sum -c SHA256SUMS
 # coldiron-os-0.3.0-amd64.iso: OK
 ```
 
-The `SHA256SUMS` file itself is published alongside the release; for the
-strongest guarantee, build the ISO yourself from source (see
-[BUILD.md](BUILD.md)) and compare hashes. (A GPG-signed `SHA256SUMS.asc`
-will be published once the release-signing ceremony in
-[SIGNING.md](SIGNING.md) is done.)
+The `SHA256SUMS` file is GPG-signed (`SHA256SUMS.asc`, published on the
+release) — verify it with `gpg --verify SHA256SUMS.asc SHA256SUMS` after
+importing the release key (fingerprint `63EA 0A22 … 4477 C2BD`, see
+[SIGNING.md](SIGNING.md)). For the strongest guarantee, build the ISO
+yourself from source (see [BUILD.md](BUILD.md)) and compare hashes.
 
 ## 3. Write the ISO to the USB stick
 
