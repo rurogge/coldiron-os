@@ -36,7 +36,7 @@
   <header>
     <h1>COLDIRON<span> OS</span></h1>
     <div class="tag">Offline by design. Sovereign by default.</div>
-    <div><span class="status">STATUS: v0.3.0 release candidate — final validation in progress</span></div>
+    <div><span class="status">STATUS: v0.3.0 released — first product release</span></div>
   </header>
 
   <p>The weak point of Bitcoin self-custody is the moment your keys touch
@@ -60,8 +60,16 @@
   <p>Get the ISO and verify it before writing it to USB — verifying is
   part of using it:</p>
   <pre>sha256sum -c SHA256SUMS
+gpg --keyserver keyserver.ubuntu.com --recv-keys 63EA0A22C16AD05182378B9B7F5397DF4477C2BD
 gpg --verify SHA256SUMS.asc SHA256SUMS
 sudo dd if=coldiron-os-0.3.0-amd64.iso of=/dev/sdX bs=4M status=progress</pre>
+  <p>Release artifacts are GPG-signed with a <strong>one-shot</strong>
+  project key (fingerprint <code>63EA 0A22 C16A D051 8237 8B9B 7F53 97DF
+  4477 C2BD</code>) that was <strong>revoked immediately after
+  signing</strong> — the signatures verify as "Good", the key shows as
+  revoked by design, and the fingerprint is the trust anchor (see
+  <a href="https://github.com/rurogge/coldiron-os/blob/main/docs/SIGNING.md">SIGNING.md</a>).
+  For the strongest guarantee, build the ISO yourself and compare hashes.</p>
   <p><a class="btn" href="https://github.com/rurogge/coldiron-os/releases">Releases on GitHub</a>
   <a class="btn" href="https://github.com/rurogge/coldiron-os" style="background:#21262d;color:#c9d1d9;">Source code</a></p>
 

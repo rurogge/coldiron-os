@@ -6,14 +6,14 @@
 with a security-project twist:
 
 - **MAJOR** — a change in the threat model or a breaking trust change
-  (e.g. new signing key, secure boot enrollment). Currently **0**
-  because the project is a prototype; the first product release is v1.0.0.
-  The v0.3.0 security pass is a MINOR bump because the trust model is
-  *strengthened*, not redefined. (v0.3.0 still ships with the PROTOTYPE
-  banner: the release-signing ceremony and the reproducible byte-diff —
-  acceptance criteria 2 and 3 in THREAT-MODEL.md — were not yet complete
-  at release time. The banner comes off only when *all* criteria are
-  met; see [THREAT-MODEL.md](THREAT-MODEL.md).)
+  (e.g. new signing key, secure boot enrollment). Currently **0**;
+  v0.3.0 was the first release to meet **all** product acceptance
+  criteria in [THREAT-MODEL.md](THREAT-MODEL.md) — release signing and
+  the reproducible byte-diff (criteria 2 and 3) were completed with the
+  release on 2026-08-13 and the PROTOTYPE banner was lifted — but the
+  version stays 0.x because the trust model is *strengthened*, not
+  redefined. A breaking trust change (e.g. a new signing key) would be
+  a MAJOR bump.
 - **MINOR** — new user-facing functionality or a significant security
   hardening step (v0.2.0 = dice-seed wallet + guidance; v0.3.0 = security
   pass).

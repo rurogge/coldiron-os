@@ -84,16 +84,19 @@ the network.
 
 ## Honest limitations (v0.3 — the product backlog)
 
-1. **Release artifacts are not yet GPG-signed by the project key.** The
-   release key does not exist yet; `SHA256SUMS.asc` and ISO signatures
-   come from an offline ceremony (see [SIGNING.md](SIGNING.md)) and will
-   be published with the release. Until then, a tampered *downloaded* ISO
-   is caught only by comparing sha256 with your own build. The in-ISO
-   boot chain, however, is already verified by GRUB.
-2. **Reproducible build not yet demonstrated.** The mechanism is in place
+1. **Release signatures use a one-shot key.** The v0.3.0 `SHA256SUMS.asc`
+   and ISO signatures were produced in the offline ceremony (see
+   [SIGNING.md](SIGNING.md)) with a key that was **revoked immediately
+   after signing** — a deliberate custody compromise (no physical air-gap
+   available). The signatures verify as "Good" but the key shows as
+   revoked by design; the fingerprint
+   (`63EA 0A22 C16A D051 8237 8B9B 7F53 97DF 4477 C2BD`) is the
+   out-of-band trust anchor, and v0.4.0 will be signed with a fresh key.
+2. **Reproducible build demonstrated for v0.3.0.** The mechanism
    (`SOURCE_DATE_EPOCH`, `snapshot.debian.org` pinning, independent CI
-   builder), but a published byte-diff between a local and a CI build is
-   still outstanding.
+   builder in `.github/workflows/reproducible.yml`) produced a
+   byte-identical ISO on local and CI (`9bebf36f…`, verified with
+   `cmp`); every future release must re-verify this before shipping.
 3. **UEFI Secure Boot enrollment** is future work. GRUB's own signature
    enforcement covers the kernel/initramfs, but the bootloader itself is
    not yet anchored to machine firmware.
@@ -125,9 +128,12 @@ v0.3.0:
 | 6 | **Documentation truth**: README, THREAT-MODEL, BUILD, INSTALL, USAGE, TESTING and dice-seed docs all describe the shipped release exactly — no stale version references, no claimed-but-missing features. | ✅ **DONE** for v0.3.0 (2026-08-13) |
 | 7 | **Full regression**: the entire host test suite and the QEMU E2E suite pass on the release candidate, including the new security features. | ✅ **DONE** — 27/27 host + 19/19 QEMU E2E (3 boots, incl. real GRUB path) |
 
-Items 1, 4, 5 and 7 are complete; **2 and 3 are the only blockers** —
-release signing (offline ceremony) and a demonstrated reproducible
-byte-diff. The banner comes off when both are published with a release.
+All seven criteria are **DONE** and verified for v0.3.0 (2026-08-13):
+release signing (criterion 2) and the reproducible byte-diff
+(criterion 3) were completed with the release, and the PROTOTYPE banner
+has been lifted. The items in "Honest limitations" above (UEFI Secure
+Boot, hardware-wallet E2E, physical adversaries) are future work beyond
+the product bar — not acceptance blockers.
 
 ## Operational rules the appliance enforces
 

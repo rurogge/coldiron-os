@@ -5,7 +5,7 @@ repeat it.
 
 ## Release verification summary (v0.3.0)
 
-Two layers, both green for the v0.3.0 release candidate:
+Two layers, both green for the v0.3.0 release:
 
 1. **Host-side script tests — 27/27.** `coldiron-dice-seed` against the
    proven BIP39/BIP84 test vectors (zero-entropy, 24-word and non-zero
@@ -106,10 +106,11 @@ E2E_DIR=/tmp/coldiron-e2e ./scripts/e2e/run-all.sh
 - No automated test on **physical hardware** (only QEMU/KVM so far);
   Sparrow's import of a dice-generated seed is verified visually (the
   appliance prints the same address + fingerprint Sparrow shows).
-- The **release signing** (`SHA256SUMS.asc`) and a published
-  **reproducible byte-diff** (local vs CI build) are not yet part of the
-  release verification — they are open acceptance criteria
-  (see [THREAT-MODEL.md](THREAT-MODEL.md)).
+- The **release signing** (`SHA256SUMS.asc`) was completed for v0.3.0 in
+  the offline ceremony ([SIGNING.md](SIGNING.md)) and the
+  **reproducible byte-diff** (local vs CI build) is demonstrated for
+  v0.3.0 (`9bebf36f…`); both are re-run for every release as part of the
+  release process (see [VERSIONING.md](VERSIONING.md)).
 - The E2E vault passphrase is the documented test password; a real
   deployment should use the full seed-ceremony checklist (see
   `docs/THREAT-MODEL.md`).

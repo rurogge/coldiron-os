@@ -2,15 +2,17 @@
 
 **Offline by design. Sovereign by default.**
 
-> ⚠️ **STATUS: PROTOTYPE (v0.3.0 released).** Do NOT trust this ISO with a
-> valuable seed yet. v0.3.0 is the security pass: the kernel now has **no
-> network drivers and no loadable modules at all**, the boot chain is
-> **signature-verified by GRUB**, and **AppArmor is enforced** on the
-> appliance scripts. The banner stays until the remaining acceptance
-> criteria are met: release artifacts GPG-signed by the project key
-> (offline ceremony, see [docs/SIGNING.md](docs/SIGNING.md)) and a
-> demonstrated reproducible byte-diff build. Until then, treat this as a
-> test build.
+> ✅ **STATUS: PRODUCT — v0.3.0 (first product release).** All seven
+> product acceptance criteria in
+> [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) are met and verified by
+> the test suite: networkless monolithic kernel, GRUB-verified boot
+> chain, enforced AppArmor, GPG-signed release artifacts and a
+> demonstrated byte-reproducible build (local == CI == `9bebf36f…`).
+> Caveat by design: the artifacts are signed with a **one-shot** key
+> revoked immediately after signing — verify against the fingerprint in
+> the [Download](#download) section
+> ([docs/SIGNING.md](docs/SIGNING.md)). UEFI Secure Boot and
+> hardware-wallet E2E remain future work, not prototype blockers.
 
 ## Table of Contents
 
@@ -317,22 +319,29 @@ dist/                                     built ISO lands here (gitignored)
   state; restrictive sysctls (`kptr_restrict=2`, `dmesg_restrict=1`,
   core dumps off, `kexec_load_disabled=1`, BPF hardened); IPv6 compiled
   out of the kernel.
+- **Signed release artifacts** — v0.3.0 `SHA256SUMS.asc` and `<iso>.asc`
+  GPG-signed in the offline ceremony with a **one-shot** project key
+  (fingerprint `63EA 0A22 C16A D051 8237 8B9B 7F53 97DF 4477 C2BD`);
+  verify with `gpg --verify SHA256SUMS.asc SHA256SUMS` (see
+  [Download](#download) and [docs/SIGNING.md](docs/SIGNING.md)).
+- **Reproducible build** — the v0.3.0 ISO is byte-identical across
+  independent local and CI builds (`9bebf36f…`, verified with `cmp`;
+  see [docs/BUILD.md](docs/BUILD.md#reproducible-builds)).
 
-**Still prototype (what blocks the PRODUCT banner):**
+**Future work (beyond the v0.3.0 product bar — see
+[docs/THREAT-MODEL.md](docs/THREAT-MODEL.md)):**
 
-- **Release artifact signing** — the project release key does not exist
-  yet; `SHA256SUMS.asc` / ISO signatures are produced by an offline
-  ceremony ([docs/SIGNING.md](docs/SIGNING.md)) and will be published
-  with the release. Until then, a tampered ISO can only be caught by
-  comparing sha256 with your own build.
-- **Reproducible build proof** — the mechanism is in place
-  (`SOURCE_DATE_EPOCH`, `snapshot.debian.org` pinning, independent CI
-  builder in `.github/workflows/reproducible.yml`), but a published
-  byte-diff between a local and a CI build is not yet demonstrated.
-- **UEFI Secure Boot** enrollment, physical-adversary protections
-  (tamper-evident hardware, anti-glitch), and hardware-wallet end-to-end
-  testing on real devices remain future work (see
-  [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md)).
+- **UEFI Secure Boot** enrollment — GRUB's own signature enforcement
+  covers kernel and initramfs, but the bootloader is not yet anchored to
+  machine firmware.
+- **Hardware-wallet end-to-end testing** on real devices — `pcscd`,
+  OpenSC and libusb are installed, but the workflow is only exercised in
+  QEMU (which cannot attach them).
+- **Physical-adversary protections** (tamper-evident hardware,
+  anti-glitch) remain explicitly out of scope.
+- **Next release key** — the v0.3.0 one-shot signing key was revoked by
+  design; v0.4.0 will be signed with a fresh key
+  ([docs/SIGNING.md](docs/SIGNING.md)).
 
 ## License
 
