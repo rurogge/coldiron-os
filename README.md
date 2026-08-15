@@ -343,6 +343,13 @@ dist/                                     built ISO lands here (gitignored)
   design; v0.4.0 will be signed with a fresh key
   ([docs/SIGNING.md](docs/SIGNING.md)).
 
+## Support
+
+COLDIRON OS is free and stays free — nothing here is paywalled. If the
+project has been useful to you, a donation to keep the AI-assisted
+development running is welcome, never required:
+[DONATIONS.md](DONATIONS.md) — BTC (BIP84), USDT (TRC20), USDC (ERC20).
+
 ## License
 
 GPL-3.0-or-later (see LICENSE).
