@@ -1,5 +1,9 @@
 # COLDIRON OS
 
+<p align="center">
+  <img src="site/logo.png" alt="COLDIRON OS" width="160">
+</p>
+
 **Offline by design. Sovereign by default.**
 
 > ✅ **STATUS: PRODUCT — v0.3.0 (first product release).** All seven
